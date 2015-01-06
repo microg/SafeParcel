@@ -52,6 +52,7 @@ public class SafeParcelUtil {
             }
             clazz = clazz.getSuperclass();
         }
+        clazz = object.getClass();
         int end = SafeParcelReader.readStart(parcel);
         while (parcel.dataPosition() < end) {
             int position = SafeParcelReader.readSingleInt(parcel);
@@ -170,7 +171,7 @@ public class SafeParcelUtil {
             if (clazz == float.class || clazz == Float.class)
                 return Float;
             if (clazz == double.class || clazz == Double.class)
-                return Float;
+                return Double;
             if (clazz == java.lang.String.class)
                 return String;
             throw new RuntimeException("Type is not yet usable with SafeParcelUtil: " + clazz);
