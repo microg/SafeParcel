@@ -5,12 +5,30 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.Log;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 
 public class SafeParcelUtil {
     private static final String TAG = "SafeParcel";
+
+    public static <T extends SafeParcelable> T createObject(Class<T> tClass, Parcel in) {
+        try {
+            Constructor<T> constructor = tClass.getDeclaredConstructor();
+            boolean acc = constructor.isAccessible();
+            constructor.setAccessible(true);
+            T t = constructor.newInstance();
+            readObject(t, in);
+            constructor.setAccessible(acc);
+            return t;
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException("createObject() requires a default constructor");
+        } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
+            throw new RuntimeException("Can't construct object", e);
+        }
+    }
 
     public static void writeObject(SafeParcelable object, Parcel parcel, int flags) {
         if (object == null)
