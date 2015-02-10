@@ -8,7 +8,9 @@ import android.util.Log;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class SafeParcelUtil {
@@ -104,6 +106,15 @@ public class SafeParcelUtil {
         }
     }
 
+    private static ClassLoader getClassLoader(Field field) {
+        try {
+            String type = field.getAnnotation(SafeParceled.class).subType();
+            return Class.forName(type).getClassLoader();
+        } catch (ClassNotFoundException e) {
+            return ClassLoader.getSystemClassLoader();
+        }
+    }
+
     private static void writeField(SafeParcelable object, Parcel parcel, Field field, int flags)
             throws IllegalAccessException {
         int num = field.getAnnotation(SafeParceled.class).value();
@@ -116,6 +127,9 @@ public class SafeParcelUtil {
                 break;
             case Binder:
                 SafeParcelWriter.write(parcel, num, (IBinder) field.get(object), mayNull);
+                break;
+            case List:
+                SafeParcelWriter.write(parcel, num, (List) field.get(object), mayNull);
                 break;
             case Integer:
                 SafeParcelWriter.write(parcel, num, (Integer) field.get(object));
@@ -151,6 +165,9 @@ public class SafeParcelUtil {
                 field.set(object, SafeParcelReader.readBinder(parcel,
                         position));
                 break;
+            case List:
+                field.set(object, SafeParcelReader.readList(parcel, position, getClassLoader(field)));
+                break;
             case Integer:
                 field.set(object, SafeParcelReader.readInt(parcel, position));
                 break;
@@ -173,13 +190,15 @@ public class SafeParcelUtil {
     }
 
     private enum SafeParcelType {
-        Parcelable, Binder, Integer, Long, Boolean, Float, Double, String;
+        Parcelable, Binder, Integer, Long, Boolean, Float, Double, String, List;
 
         public static SafeParcelType fromClass(Class clazz) {
             if (Parcelable.class.isAssignableFrom(clazz))
                 return Parcelable;
             if (IBinder.class.isAssignableFrom(clazz))
                 return Binder;
+            if (clazz == List.class || clazz == ArrayList.class)
+                return List;
             if (clazz == int.class || clazz == Integer.class)
                 return Integer;
             if (clazz == boolean.class || clazz == Boolean.class)

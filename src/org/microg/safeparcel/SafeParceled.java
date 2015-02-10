@@ -11,4 +11,6 @@ public @interface SafeParceled {
     int value();
 
     boolean mayNull() default false;
+
+    String subType() default "undefined";
 }
