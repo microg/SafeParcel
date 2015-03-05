@@ -115,6 +115,10 @@ public class SafeParcelUtil {
         }
     }
 
+    private static ClassLoader getArrayClassLoader(Field field) {
+        return field.getType().getComponentType().getClassLoader();
+    }
+
     private static void writeField(SafeParcelable object, Parcel parcel, Field field, int flags)
             throws IllegalAccessException {
         int num = field.getAnnotation(SafeParceled.class).value();
@@ -130,6 +134,12 @@ public class SafeParcelUtil {
                 break;
             case List:
                 SafeParcelWriter.write(parcel, num, (List) field.get(object), mayNull);
+                break;
+            case ParcelableArray:
+                SafeParcelWriter.write(parcel, num, (Parcelable[]) field.get(object), flags, mayNull);
+                break;
+            case StringArray:
+                SafeParcelWriter.write(parcel, num, (String[]) field.get(object), mayNull);
                 break;
             case Integer:
                 SafeParcelWriter.write(parcel, num, (Integer) field.get(object));
@@ -168,6 +178,12 @@ public class SafeParcelUtil {
             case List:
                 field.set(object, SafeParcelReader.readList(parcel, position, getClassLoader(field)));
                 break;
+            case ParcelableArray:
+                field.set(object, SafeParcelReader.readParcelableArray(parcel, position, getCreator(field)));
+                break;
+            case StringArray:
+                field.set(object, SafeParcelReader.readStringArray(parcel, position));
+                break;
             case Integer:
                 field.set(object, SafeParcelReader.readInt(parcel, position));
                 break;
@@ -190,9 +206,14 @@ public class SafeParcelUtil {
     }
 
     private enum SafeParcelType {
-        Parcelable, Binder, Integer, Long, Boolean, Float, Double, String, List;
+        Parcelable, Binder, List, ParcelableArray, StringArray,
+        Integer, Long, Boolean, Float, Double, String;
 
         public static SafeParcelType fromClass(Class clazz) {
+            if (clazz.isArray() && Parcelable.class.isAssignableFrom(clazz.getComponentType()))
+                return ParcelableArray;
+            if (clazz.isArray() && String.class.isAssignableFrom(clazz.getComponentType()))
+                return StringArray;
             if (Parcelable.class.isAssignableFrom(clazz))
                 return Parcelable;
             if (IBinder.class.isAssignableFrom(clazz))

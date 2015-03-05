@@ -21,7 +21,6 @@ import android.os.Parcel;
 import android.os.Parcelable;
 
 import java.util.ArrayList;
-import java.util.List;
 
 public class SafeParcelReader {
     public static int halfOf(int i) {
@@ -129,6 +128,46 @@ public class SafeParcelReader {
         ArrayList list = parcel.readArrayList(classLoader);
         parcel.setDataPosition(start + length);
         return list;
+    }
+
+    public static <T extends Parcelable> ArrayList<T> readParcelableList(Parcel parcel, int position, Parcelable.Creator<T> creator) {
+        int length = readStart(parcel, position);
+        int start = parcel.dataPosition();
+        if (length == 0)
+            return null;
+        ArrayList<T> list = parcel.createTypedArrayList(creator);
+        parcel.setDataPosition(start + length);
+        return list;
+    }
+
+    public static ArrayList<String> readStringList(Parcel parcel, int position) {
+        int length = readStart(parcel, position);
+        int start = parcel.dataPosition();
+        if (length == 0)
+            return null;
+        ArrayList<String> list = parcel.createStringArrayList();
+        parcel.setDataPosition(start + length);
+        return list;
+    }
+
+    public static <T extends Parcelable> T[] readParcelableArray(Parcel parcel, int position, Parcelable.Creator<T> creator) {
+        int length = readStart(parcel, position);
+        int start = parcel.dataPosition();
+        if (length == 0)
+            return null;
+        T[] arr = parcel.createTypedArray(creator);
+        parcel.setDataPosition(start + length);
+        return arr;
+    }
+
+    public static String[] readStringArray(Parcel parcel, int position) {
+        int length = readStart(parcel, position);
+        int start = parcel.dataPosition();
+        if (length == 0)
+            return null;
+        String[] arr = parcel.createStringArray();
+        parcel.setDataPosition(start + length);
+        return arr;
     }
 
     public static void skip(Parcel parcel, int position) {
