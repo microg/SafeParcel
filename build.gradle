@@ -4,22 +4,17 @@ buildscript {
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:1.0.0'
+        classpath 'com.github.dcendents:android-maven-plugin:1.2'
     }
 }
+
 apply plugin: 'com.android.library'
+apply plugin: 'com.github.dcendents.android-maven'
+
+group = 'org.microg'
+version = '1.0-SNAPSHOT'
+
 android {
     compileSdkVersion 21
     buildToolsVersion "21.1.2"
-    lintOptions.abortOnError false
-
-    sourceSets {
-        main {
-            manifest.srcFile 'AndroidManifest.xml'
-            java.srcDirs = ['src']
-            aidl.srcDirs = ['src']
-        }
-    }
-}
-
-dependencies {
 }
