@@ -11,7 +11,7 @@ apply plugin: 'com.android.library'
 apply from: 'gradle-mvn-push.gradle'
 
 group = 'org.microg'
-version = '1.0.0'
+version = '1.1-SNAPSHOT'
 
 android {
     compileSdkVersion 22
