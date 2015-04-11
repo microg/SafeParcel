@@ -96,11 +96,18 @@ public class SafeParcelUtil {
     }
 
     private static Parcelable.Creator getCreator(Field field) throws IllegalAccessException {
-        try {
-            return (Parcelable.Creator) field.getType().getDeclaredField("CREATOR").get(null);
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(field.getType() + " is an Parcelable without CREATOR");
+        Class clazz = field.getType();
+        if (clazz.isArray()) {
+            clazz = clazz.getComponentType();
         }
+        if (Parcelable.class.isAssignableFrom(clazz)) {
+            try {
+                return (Parcelable.Creator) clazz.getDeclaredField("CREATOR").get(null);
+            } catch (NoSuchFieldException e) {
+                throw new RuntimeException(clazz + " is an Parcelable without CREATOR");
+            }
+        }
+        throw new RuntimeException(clazz + " is not an Parcelable");
     }
 
     private static ClassLoader getClassLoader(Field field) {
