@@ -170,6 +170,16 @@ public class SafeParcelReader {
         return arr;
     }
 
+    public static byte[] readByteArray(Parcel parcel, int position) {
+        int length = readStart(parcel, position);
+        int start = parcel.dataPosition();
+        if (length == 0)
+            return null;
+        byte[] arr = parcel.createByteArray();
+        parcel.setDataPosition(start + length);
+        return arr;
+    }
+
     public static void skip(Parcel parcel, int position) {
         int i = readStart(parcel, position);
         parcel.setDataPosition(parcel.dataPosition() + i);
