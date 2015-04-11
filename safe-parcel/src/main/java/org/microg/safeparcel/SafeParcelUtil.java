@@ -175,12 +175,10 @@ public class SafeParcelUtil {
         field.setAccessible(true);
         switch (SafeParcelType.fromClass(field.getType())) {
             case Parcelable:
-                field.set(object, SafeParcelReader
-                        .readParcelable(parcel, position, getCreator(field)));
+                field.set(object, SafeParcelReader.readParcelable(parcel, position, getCreator(field)));
                 break;
             case Binder:
-                field.set(object, SafeParcelReader.readBinder(parcel,
-                        position));
+                field.set(object, SafeParcelReader.readBinder(parcel, position));
                 break;
             case List:
                 field.set(object, SafeParcelReader.readList(parcel, position, getClassLoader(field)));
