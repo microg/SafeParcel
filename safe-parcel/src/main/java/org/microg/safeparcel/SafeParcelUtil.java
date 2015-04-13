@@ -55,7 +55,7 @@ public class SafeParcelUtil {
         if (object == null)
             throw new NullPointerException();
         Class clazz = object.getClass();
-        Map<Integer, Field> fieldMap = new HashMap<>();
+        Map<Integer, Field> fieldMap = new HashMap<Integer, Field>();
         while (clazz != null) {
             for (Field field : clazz.getDeclaredFields()) {
                 if (field.isAnnotationPresent(SafeParceled.class)) {
