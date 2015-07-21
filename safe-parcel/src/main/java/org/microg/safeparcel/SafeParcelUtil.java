@@ -1,6 +1,7 @@
 package org.microg.safeparcel;
 
 import android.os.IBinder;
+import android.os.IInterface;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.Log;
@@ -136,6 +137,9 @@ public class SafeParcelUtil {
             case Binder:
                 SafeParcelWriter.write(parcel, num, (IBinder) field.get(object), mayNull);
                 break;
+            case Interface:
+                SafeParcelWriter.write(parcel, num, ((IInterface) field.get(object)).asBinder(), mayNull);
+                break;
             case List:
                 SafeParcelWriter.write(parcel, num, (List) field.get(object), mayNull);
                 break;
@@ -180,6 +184,19 @@ public class SafeParcelUtil {
             case Binder:
                 field.set(object, SafeParcelReader.readBinder(parcel, position));
                 break;
+            case Interface:
+                boolean hasStub = false;
+                for (Class<?> aClass : field.getType().getDeclaredClasses()) {
+                    try {
+                        field.set(object, aClass.getDeclaredMethod("asInterface", IBinder.class)
+                                .invoke(null, SafeParcelReader.readBinder(parcel, position)));
+                        hasStub = true;
+                        break;
+                    } catch (Exception ignored) {
+                    }
+                }
+                if (!hasStub) throw new RuntimeException("Field has broken interface: " + field);
+                break;
             case List:
                 field.set(object, SafeParcelReader.readList(parcel, position, getClassLoader(field)));
                 break;
@@ -214,7 +231,7 @@ public class SafeParcelUtil {
     }
 
     private enum SafeParcelType {
-        Parcelable, Binder, List, ParcelableArray, StringArray, ByteArray,
+        Parcelable, Binder, List, ParcelableArray, StringArray, ByteArray, Interface,
         Integer, Long, Boolean, Float, Double, String;
 
         public static SafeParcelType fromClass(Class clazz) {
@@ -228,6 +245,8 @@ public class SafeParcelUtil {
                 return Parcelable;
             if (IBinder.class.isAssignableFrom(clazz))
                 return Binder;
+            if (IInterface.class.isAssignableFrom(clazz))
+                return Interface;
             if (clazz == List.class || clazz == ArrayList.class)
                 return List;
             if (clazz == int.class || clazz == Integer.class)
