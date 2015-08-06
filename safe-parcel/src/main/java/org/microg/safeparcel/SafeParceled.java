@@ -12,5 +12,7 @@ public @interface SafeParceled {
 
     boolean mayNull() default false;
 
-    String subType() default "undefined";
+    @Deprecated String subType() default "undefined";
+
+    Class subClass() default SafeParceled.class;
 }

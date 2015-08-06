@@ -78,8 +78,8 @@ public class SafeParcelUtil {
             int position = SafeParcelReader.readSingleInt(parcel);
             int fieldNum = SafeParcelReader.halfOf(position);
             if (!fieldMap.containsKey(fieldNum)) {
-                Log.w(TAG,
-                        "Unknown field num " + fieldNum + " in " + clazz.getName() + ", skipping.");
+                Log.d(TAG, "Unknown field num " + fieldNum + " in " + clazz.getName() +
+                        ", skipping.");
                 SafeParcelReader.skip(parcel, position);
             } else {
                 try {
@@ -102,22 +102,35 @@ public class SafeParcelUtil {
             clazz = clazz.getComponentType();
         }
         if (Parcelable.class.isAssignableFrom(clazz)) {
-            try {
-                return (Parcelable.Creator) clazz.getDeclaredField("CREATOR").get(null);
-            } catch (NoSuchFieldException e) {
-                throw new RuntimeException(clazz + " is an Parcelable without CREATOR");
-            }
+            return getCreator(clazz);
         }
         throw new RuntimeException(clazz + " is not an Parcelable");
     }
 
-    private static ClassLoader getClassLoader(Field field) {
+    private static Parcelable.Creator getCreator(Class clazz) throws IllegalAccessException {
         try {
-            String type = field.getAnnotation(SafeParceled.class).subType();
-            return Class.forName(type).getClassLoader();
-        } catch (ClassNotFoundException e) {
-            return ClassLoader.getSystemClassLoader();
+            return (Parcelable.Creator) clazz.getDeclaredField("CREATOR").get(null);
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException(clazz + " is an Parcelable without CREATOR");
         }
+    }
+
+    @SuppressWarnings("deprecation")
+    private static Class getClass(Field field) {
+        try {
+            SafeParceled annotation = field.getAnnotation(SafeParceled.class);
+            if (annotation.subClass() == SafeParceled.class) {
+                return Class.forName(annotation.subType());
+            } else {
+                return annotation.subClass();
+            }
+        } catch (ClassNotFoundException e) {
+            return null;
+        }
+    }
+
+    private static ClassLoader getClassLoader(Class clazz) {
+        return clazz == null ? ClassLoader.getSystemClassLoader() : clazz.getClassLoader();
     }
 
     private static ClassLoader getArrayClassLoader(Field field) {
@@ -169,6 +182,7 @@ public class SafeParcelUtil {
                 break;
             case String:
                 SafeParcelWriter.write(parcel, num, (String) field.get(object), mayNull);
+                break;
         }
         field.setAccessible(acc);
     }
@@ -198,7 +212,14 @@ public class SafeParcelUtil {
                 if (!hasStub) throw new RuntimeException("Field has broken interface: " + field);
                 break;
             case List:
-                field.set(object, SafeParcelReader.readList(parcel, position, getClassLoader(field)));
+                Class clazz = getClass(field);
+                Object val;
+                if (Parcelable.class.isAssignableFrom(clazz)) {
+                    val = SafeParcelReader.readParcelableList(parcel, position, getCreator(clazz));
+                } else {
+                    val = SafeParcelReader.readList(parcel, position, getClassLoader(clazz));
+                }
+                field.set(object, val);
                 break;
             case ParcelableArray:
                 field.set(object, SafeParcelReader.readParcelableArray(parcel, position, getCreator(field)));
@@ -226,6 +247,7 @@ public class SafeParcelUtil {
                 break;
             case String:
                 field.set(object, SafeParcelReader.readString(parcel, position));
+                break;
         }
         field.setAccessible(acc);
     }
