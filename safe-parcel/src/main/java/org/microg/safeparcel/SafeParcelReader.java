@@ -22,7 +22,12 @@ import android.os.Parcelable;
 
 import java.util.ArrayList;
 
-public class SafeParcelReader {
+@SuppressWarnings("MagicNumber")
+public final class SafeParcelReader {
+
+    private SafeParcelReader() {
+    }
+
     public static int halfOf(int i) {
         return i & 0xFFFF;
     }

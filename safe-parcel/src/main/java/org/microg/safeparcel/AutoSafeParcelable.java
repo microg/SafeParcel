@@ -17,7 +17,7 @@ public abstract class AutoSafeParcelable implements SafeParcelable {
 
     public static class AutoCreator<T extends SafeParcelable> implements Creator<T> {
 
-        private Class<T> tClass;
+        private final Class<T> tClass;
 
         public AutoCreator(Class<T> tClass) {
             this.tClass = tClass;
@@ -28,6 +28,7 @@ public abstract class AutoSafeParcelable implements SafeParcelable {
             return SafeParcelUtil.createObject(tClass, parcel);
         }
 
+        @SuppressWarnings("unchecked")
         @Override
         public T[] newArray(int i) {
             return (T[]) Array.newInstance(tClass, i);

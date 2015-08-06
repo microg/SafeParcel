@@ -5,16 +5,18 @@ import android.os.IInterface;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.Log;
+import android.util.SparseArray;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-public class SafeParcelUtil {
+public final class SafeParcelUtil {
     private static final String TAG = "SafeParcel";
+
+    private SafeParcelUtil() {
+    }
 
     public static <T extends SafeParcelable> T createObject(Class<T> tClass, Parcel in) {
         try {
@@ -56,12 +58,12 @@ public class SafeParcelUtil {
         if (object == null)
             throw new NullPointerException();
         Class clazz = object.getClass();
-        Map<Integer, Field> fieldMap = new HashMap<Integer, Field>();
+        SparseArray<Field> fieldMap = new SparseArray<Field>();
         while (clazz != null) {
             for (Field field : clazz.getDeclaredFields()) {
                 if (field.isAnnotationPresent(SafeParceled.class)) {
                     int fieldNum = field.getAnnotation(SafeParceled.class).value();
-                    if (fieldMap.containsKey(fieldNum)) {
+                    if (fieldMap.get(fieldNum) != null) {
                         throw new RuntimeException(
                                 "Field number " + fieldNum + " is used twice in " +
                                         clazz.getName() + " for fields " + field.getName() +
@@ -77,13 +79,14 @@ public class SafeParcelUtil {
         while (parcel.dataPosition() < end) {
             int position = SafeParcelReader.readSingleInt(parcel);
             int fieldNum = SafeParcelReader.halfOf(position);
-            if (!fieldMap.containsKey(fieldNum)) {
+            Field field = fieldMap.get(fieldNum);
+            if (field == null) {
                 Log.d(TAG, "Unknown field num " + fieldNum + " in " + clazz.getName() +
                         ", skipping.");
                 SafeParcelReader.skip(parcel, position);
             } else {
                 try {
-                    readField(object, parcel, fieldMap.get(fieldNum), position);
+                    readField(object, parcel, field, position);
                 } catch (Exception e) {
                     Log.w(TAG, "Error reading field: " + fieldNum + " in " + clazz.getName() +
                             ", skipping.", e);
@@ -214,7 +217,7 @@ public class SafeParcelUtil {
             case List:
                 Class clazz = getClass(field);
                 Object val;
-                if (Parcelable.class.isAssignableFrom(clazz)) {
+                if (clazz != null && Parcelable.class.isAssignableFrom(clazz)) {
                     val = SafeParcelReader.readParcelableList(parcel, position, getCreator(clazz));
                 } else {
                     val = SafeParcelReader.readList(parcel, position, getClassLoader(clazz));

@@ -23,10 +23,14 @@ import android.os.Parcelable;
 
 import java.util.List;
 
-public class SafeParcelWriter {
+@SuppressWarnings("MagicNumber")
+public final class SafeParcelWriter {
+
+    private SafeParcelWriter() {
+    }
 
     private static void writeStart(Parcel parcel, int position, int length) {
-        if (length >= 65535) {
+        if (length >= 0xFFFF) {
             parcel.writeInt(0xFFFF0000 | position);
             parcel.writeInt(length);
         } else {
