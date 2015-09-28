@@ -27,7 +27,7 @@ apply plugin: 'com.android.library'
 apply plugin: 'com.github.dcendents.android-maven'
 
 group = 'org.microg'
-version = '1.2-SNAPSHOT'
+version = '1.2.0'
 
 android {
     compileSdkVersion 23
