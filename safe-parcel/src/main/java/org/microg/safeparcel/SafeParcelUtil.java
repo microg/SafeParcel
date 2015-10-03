@@ -177,7 +177,12 @@ public final class SafeParcelUtil {
                 SafeParcelWriter.write(parcel, num, ((IInterface) field.get(object)).asBinder(), mayNull);
                 break;
             case List:
-                SafeParcelWriter.write(parcel, num, (List) field.get(object), mayNull);
+                Class clazz = getClass(field);
+                if (clazz != null && Parcelable.class.isAssignableFrom(clazz) && !useClassLoader(field)) {
+                    SafeParcelWriter.write(parcel, num, (List) field.get(object), flags, mayNull);
+                } else {
+                    SafeParcelWriter.write(parcel, num, (List) field.get(object), mayNull);
+                }
                 break;
             case ParcelableArray:
                 SafeParcelWriter.write(parcel, num, (Parcelable[]) field.get(object), flags, mayNull);

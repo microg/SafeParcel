@@ -200,6 +200,25 @@ public final class SafeParcelWriter {
         }
     }
 
+    public static <T extends Parcelable> void write(Parcel parcel, int position, List<T> val, int flags, boolean mayNull) {
+        if (val == null) {
+            if (mayNull) {
+                writeStart(parcel, position, 0);
+            }
+        } else {
+            int start = writeStart(parcel, position);
+            parcel.writeInt(val.size());
+            for (T t : val) {
+                if (t == null) {
+                    parcel.writeInt(0);
+                } else {
+                    writeArrayPart(parcel, t, flags);
+                }
+            }
+            writeEnd(parcel, start);
+        }
+    }
+
     public static void write(Parcel parcel, int position, Parcel val, boolean mayNull) {
         if (val == null) {
             if (mayNull) {
