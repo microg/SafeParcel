@@ -16,6 +16,7 @@
 
 package org.microg.safeparcel;
 
+import android.os.Bundle;
 import android.os.IBinder;
 import android.os.IInterface;
 import android.os.Parcel;
@@ -184,6 +185,9 @@ public final class SafeParcelUtil {
                     SafeParcelWriter.write(parcel, num, (List) field.get(object), mayNull);
                 }
                 break;
+            case Bundle:
+                SafeParcelWriter.write(parcel, num, (Bundle) field.get(object), mayNull);
+                break;
             case ParcelableArray:
                 SafeParcelWriter.write(parcel, num, (Parcelable[]) field.get(object), flags, mayNull);
                 break;
@@ -249,6 +253,15 @@ public final class SafeParcelUtil {
                 }
                 field.set(object, val);
                 break;
+            case Bundle:
+                clazz = getClass(field);
+                if (clazz != null && Parcelable.class.isAssignableFrom(clazz) && !useClassLoader(field)) {
+                    val = SafeParcelReader.readBundle(parcel, position, getClassLoader(clazz));
+                } else {
+                    val = SafeParcelReader.readBundle(parcel, position, getClassLoader(field.getDeclaringClass()));
+                }
+                field.set(object, val);
+                break;
             case ParcelableArray:
                 field.set(object, SafeParcelReader.readParcelableArray(parcel, position, getCreator(field)));
                 break;
@@ -281,7 +294,7 @@ public final class SafeParcelUtil {
     }
 
     private enum SafeParcelType {
-        Parcelable, Binder, List, ParcelableArray, StringArray, ByteArray, Interface,
+        Parcelable, Binder, List, Bundle, ParcelableArray, StringArray, ByteArray, Interface,
         Integer, Long, Boolean, Float, Double, String;
 
         public static SafeParcelType fromClass(Class clazz) {
@@ -291,6 +304,8 @@ public final class SafeParcelUtil {
                 return StringArray;
             if (clazz.isArray() && byte.class.isAssignableFrom(clazz.getComponentType()))
                 return ByteArray;
+            if (Bundle.class.isAssignableFrom(clazz))
+                return Bundle;
             if (Parcelable.class.isAssignableFrom(clazz))
                 return Parcelable;
             if (IBinder.class.isAssignableFrom(clazz))

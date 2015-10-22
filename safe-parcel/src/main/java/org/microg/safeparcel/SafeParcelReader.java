@@ -16,6 +16,7 @@
 
 package org.microg.safeparcel;
 
+import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -183,6 +184,16 @@ public final class SafeParcelReader {
         byte[] arr = parcel.createByteArray();
         parcel.setDataPosition(start + length);
         return arr;
+    }
+
+    public static Bundle readBundle(Parcel parcel, int position, ClassLoader classLoader) {
+        int length = readStart(parcel, position);
+        int start = parcel.dataPosition();
+        if (length == 0)
+            return null;
+        Bundle bundle = parcel.readBundle(classLoader);
+        parcel.setDataPosition(start + length);
+        return bundle;
     }
 
     public static void skip(Parcel parcel, int position) {
