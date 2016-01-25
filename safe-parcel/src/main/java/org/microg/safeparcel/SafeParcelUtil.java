@@ -329,4 +329,23 @@ public final class SafeParcelUtil {
             throw new RuntimeException("Type is not yet usable with SafeParcelUtil: " + clazz);
         }
     }
+
+    public static <T extends Parcelable> byte[] asByteArray(T parcelable) {
+        if (parcelable == null) return null;
+        Parcel parcel = Parcel.obtain();
+        parcelable.writeToParcel(parcel, 0);
+        byte[] bytes =  parcel.marshall();
+        parcel.recycle();
+        return bytes;
+    }
+
+    public static <T extends Parcelable> T fromByteArray(byte[] bytes, Parcelable.Creator<T> tCreator) {
+        if (bytes == null) return null;
+        Parcel parcel = Parcel.obtain();
+        parcel.unmarshall(bytes, 0, bytes.length);
+        parcel.setDataPosition(0);
+        T parcelable = tCreator.createFromParcel(parcel);
+        parcel.recycle();
+        return parcelable;
+    }
 }
