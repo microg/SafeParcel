@@ -1,7 +1,7 @@
 SafeParcel
 ==========
 
-SafeParcel is a mechanism to serialize objects on the Android platform into Parcelables version agnostic.
+SafeParcel is a mechanism to serialize objects on the Android platform into Parcelables version-agnostic.
 
 This is achieved by prefixing each field with a unique identifying number and its length.
 When deserializing, unknown fields can be skipped and the field order is not relevant.
@@ -70,7 +70,7 @@ SafeParcel design patterns
 --------------------------
 
 It is recommended to add a version code to the fields being parceled in a SafeParcel object.
-Although the SafeParcel format is version agnostic, your code maybe is not.  With a version code,
+Although the SafeParcel format is version-agnostic, your code may be not.  With a version code,
 you can realize that the object was deserialized from an older version and ensure that fields that did not
 exist previously are populated.
 
