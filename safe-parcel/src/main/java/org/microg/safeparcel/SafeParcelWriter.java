@@ -146,6 +146,18 @@ public final class SafeParcelWriter {
         }
     }
 
+    public static void write(Parcel parcel, int position, int[] val, boolean mayNull) {
+        if (val == null) {
+            if (mayNull) {
+                writeStart(parcel, position, 0);
+            }
+        } else {
+            int start = writeStart(parcel, position);
+            parcel.writeIntArray(val);
+            writeEnd(parcel, start);
+        }
+    }
+
     public static void write(Parcel parcel, int position, String[] val, boolean mayNull) {
         if (val == null) {
             if (mayNull) {

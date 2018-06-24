@@ -197,6 +197,9 @@ public final class SafeParcelUtil {
             case ByteArray:
                 SafeParcelWriter.write(parcel, num, (byte[]) field.get(object), mayNull);
                 break;
+            case IntArray:
+                SafeParcelWriter.write(parcel, num, (int[]) field.get(object), mayNull);
+                break;
             case Integer:
                 SafeParcelWriter.write(parcel, num, (Integer) field.get(object));
                 break;
@@ -271,6 +274,9 @@ public final class SafeParcelUtil {
             case ByteArray:
                 field.set(object, SafeParcelReader.readByteArray(parcel, position));
                 break;
+            case IntArray:
+                field.set(object, SafeParcelReader.readIntArray(parcel, position));
+                break;
             case Integer:
                 field.set(object, SafeParcelReader.readInt(parcel, position));
                 break;
@@ -294,8 +300,8 @@ public final class SafeParcelUtil {
     }
 
     private enum SafeParcelType {
-        Parcelable, Binder, List, Bundle, ParcelableArray, StringArray, ByteArray, Interface,
-        Integer, Long, Boolean, Float, Double, String;
+        Parcelable, Binder, List, Bundle, ParcelableArray, StringArray, ByteArray, IntArray,
+        Interface, Integer, Long, Boolean, Float, Double, String;
 
         public static SafeParcelType fromClass(Class clazz) {
             if (clazz.isArray() && Parcelable.class.isAssignableFrom(clazz.getComponentType()))
@@ -304,6 +310,8 @@ public final class SafeParcelUtil {
                 return StringArray;
             if (clazz.isArray() && byte.class.isAssignableFrom(clazz.getComponentType()))
                 return ByteArray;
+            if (clazz.isArray() && int.class.isAssignableFrom(clazz.getComponentType()))
+                return IntArray;
             if (Bundle.class.isAssignableFrom(clazz))
                 return Bundle;
             if (Parcelable.class.isAssignableFrom(clazz))

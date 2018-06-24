@@ -186,6 +186,16 @@ public final class SafeParcelReader {
         return arr;
     }
 
+    public static int[] readIntArray(Parcel parcel, int position) {
+        int length = readStart(parcel, position);
+        int start = parcel.dataPosition();
+        if (length == 0)
+            return null;
+        int[] arr = parcel.createIntArray();
+        parcel.setDataPosition(start + length);
+        return arr;
+    }
+
     public static Bundle readBundle(Parcel parcel, int position, ClassLoader classLoader) {
         int length = readStart(parcel, position);
         int start = parcel.dataPosition();
