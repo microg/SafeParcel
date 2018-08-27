@@ -26,6 +26,8 @@ import android.util.SparseArray;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -167,7 +169,7 @@ public final class SafeParcelUtil {
         boolean mayNull = field.getAnnotation(SafeParceled.class).mayNull();
         boolean acc = field.isAccessible();
         field.setAccessible(true);
-        switch (SafeParcelType.fromClass(field.getType())) {
+        switch (SafeParcelType.fromField(field)) {
             case Parcelable:
                 SafeParcelWriter.write(parcel, num, (Parcelable) field.get(object), flags, mayNull);
                 break;
@@ -176,6 +178,9 @@ public final class SafeParcelUtil {
                 break;
             case Interface:
                 SafeParcelWriter.write(parcel, num, ((IInterface) field.get(object)).asBinder(), mayNull);
+                break;
+            case StringList:
+                SafeParcelWriter.writeStringList(parcel, num, ((List<String>)field.get(object)), mayNull);
                 break;
             case List:
                 Class clazz = getClass(field);
@@ -226,7 +231,7 @@ public final class SafeParcelUtil {
             throws IllegalAccessException {
         boolean acc = field.isAccessible();
         field.setAccessible(true);
-        switch (SafeParcelType.fromClass(field.getType())) {
+        switch (SafeParcelType.fromField(field)) {
             case Parcelable:
                 field.set(object, SafeParcelReader.readParcelable(parcel, position, getCreator(field)));
                 break;
@@ -245,6 +250,9 @@ public final class SafeParcelUtil {
                     }
                 }
                 if (!hasStub) throw new RuntimeException("Field has broken interface: " + field);
+                break;
+            case StringList:
+                field.set(object, SafeParcelReader.readStringList(parcel, position));
                 break;
             case List:
                 Class clazz = getClass(field);
@@ -300,10 +308,11 @@ public final class SafeParcelUtil {
     }
 
     private enum SafeParcelType {
-        Parcelable, Binder, List, Bundle, ParcelableArray, StringArray, ByteArray, IntArray,
-        Interface, Integer, Long, Boolean, Float, Double, String;
+        Parcelable, Binder, StringList, List, Bundle, ParcelableArray, StringArray, ByteArray, 
+        Interface, IntArray, Integer, Long, Boolean, Float, Double, String;
 
-        public static SafeParcelType fromClass(Class clazz) {
+        public static SafeParcelType fromField(Field field) {
+            Class clazz = field.getType();
             if (clazz.isArray() && Parcelable.class.isAssignableFrom(clazz.getComponentType()))
                 return ParcelableArray;
             if (clazz.isArray() && String.class.isAssignableFrom(clazz.getComponentType()))
@@ -320,8 +329,18 @@ public final class SafeParcelUtil {
                 return Binder;
             if (IInterface.class.isAssignableFrom(clazz))
                 return Interface;
-            if (clazz == List.class || clazz == ArrayList.class)
+            if (clazz == List.class || clazz == ArrayList.class) {
+                Type type = field.getGenericType();
+                if (type instanceof ParameterizedType) {
+                    ParameterizedType pt = (ParameterizedType) type;
+                    if (pt.getActualTypeArguments().length == 1 && pt.getActualTypeArguments()[0] == String.class) {
+                        // Parcel serializes string lists with specific methods
+                        // separate from generic list serialization.
+                        return StringList;
+                    }
+                }
                 return List;
+            }
             if (clazz == int.class || clazz == Integer.class)
                 return Integer;
             if (clazz == boolean.class || clazz == Boolean.class)
