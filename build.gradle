@@ -20,17 +20,17 @@ buildscript {
         google()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.0.1'
-        classpath 'com.github.dcendents:android-maven-gradle-plugin:1.4.1'
+        classpath 'com.android.tools.build:gradle:3.5.2'
+        classpath 'com.github.dcendents:android-maven-gradle-plugin:2.0'
     }
 }
 
 allprojects {
     apply plugin: 'idea'
-    ext.androidBuildVersionTools = "27.0.3"
+    ext.androidBuildVersionTools = "29.0.2"
 }
 
-def androidCompileSdk() { return 27 }
+def androidCompileSdk() { return 29 }
 
 subprojects {
     repositories {

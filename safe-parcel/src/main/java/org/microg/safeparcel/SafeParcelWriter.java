@@ -22,6 +22,7 @@ import android.os.Parcel;
 import android.os.Parcelable;
 
 import java.util.List;
+import java.util.Map;
 
 @SuppressWarnings("MagicNumber")
 public final class SafeParcelWriter {
@@ -29,26 +30,36 @@ public final class SafeParcelWriter {
     private SafeParcelWriter() {
     }
 
-    private static void writeStart(Parcel parcel, int position, int length) {
-        if (length >= 0xFFFF) {
-            parcel.writeInt(0xFFFF0000 | position);
-            parcel.writeInt(length);
+    private static void writeHeader(Parcel parcel, int fieldId, int size) {
+        if (size >= 0xFFFF) {
+            parcel.writeInt(0xFFFF0000 | fieldId);
+            parcel.writeInt(size);
         } else {
-            parcel.writeInt(length << 16 | position);
+            parcel.writeInt(size << 16 | fieldId);
         }
     }
 
+    @Deprecated
     public static int writeStart(Parcel parcel) {
-        return writeStart(parcel, SafeParcelable.SAFE_PARCEL_MAGIC);
+        return writeObjectHeader(parcel);
     }
 
-    private static int writeStart(Parcel parcel, int position) {
-        parcel.writeInt(0xFFFF0000 | position);
-        parcel.writeInt(0);
+    public static int writeObjectHeader(Parcel parcel) {
+        writeHeader(parcel, SafeParcelable.SAFE_PARCEL_OBJECT_MAGIC, 0xFFFF);
         return parcel.dataPosition();
     }
 
+    private static int writeObjectHeader(Parcel parcel, int fieldId) {
+        writeHeader(parcel, fieldId, 0xFFFF);
+        return parcel.dataPosition();
+    }
+
+    @Deprecated
     public static void writeEnd(Parcel parcel, int start) {
+        finishObjectHeader(parcel, start);
+    }
+
+    public static void finishObjectHeader(Parcel parcel, int start) {
         int end = parcel.dataPosition();
         int length = end - start;
         parcel.setDataPosition(start - 4);
@@ -56,129 +67,129 @@ public final class SafeParcelWriter {
         parcel.setDataPosition(end);
     }
 
-    public static void write(Parcel parcel, int position, Boolean val) {
+    public static void write(Parcel parcel, int fieldId, Boolean val) {
         if (val == null) return;
-        writeStart(parcel, position, 4);
+        writeHeader(parcel, fieldId, 4);
         parcel.writeInt(val ? 1 : 0);
     }
 
-    public static void write(Parcel parcel, int position, Byte val) {
+    public static void write(Parcel parcel, int fieldId, Byte val) {
         if (val == null) return;
-        writeStart(parcel, position, 4);
+        writeHeader(parcel, fieldId, 4);
         parcel.writeInt(val);
     }
 
-    public static void write(Parcel parcel, int position, Short val) {
+    public static void write(Parcel parcel, int fieldId, Short val) {
         if (val == null) return;
-        writeStart(parcel, position, 4);
+        writeHeader(parcel, fieldId, 4);
         parcel.writeInt(val);
     }
 
-    public static void write(Parcel parcel, int position, Integer val) {
+    public static void write(Parcel parcel, int fieldId, Integer val) {
         if (val == null) return;
-        writeStart(parcel, position, 4);
+        writeHeader(parcel, fieldId, 4);
         parcel.writeInt(val);
     }
 
-    public static void write(Parcel parcel, int position, Long val) {
+    public static void write(Parcel parcel, int fieldId, Long val) {
         if (val == null) return;
-        writeStart(parcel, position, 8);
+        writeHeader(parcel, fieldId, 8);
         parcel.writeLong(val);
     }
 
-    public static void write(Parcel parcel, int position, Float val) {
+    public static void write(Parcel parcel, int fieldId, Float val) {
         if (val == null) return;
-        writeStart(parcel, position, 4);
+        writeHeader(parcel, fieldId, 4);
         parcel.writeFloat(val);
     }
 
-    public static void write(Parcel parcel, int position, Double val) {
+    public static void write(Parcel parcel, int fieldId, Double val) {
         if (val == null) return;
-        writeStart(parcel, position, 8);
+        writeHeader(parcel, fieldId, 8);
         parcel.writeDouble(val);
     }
 
-    public static void write(Parcel parcel, int position, String val, boolean mayNull) {
+    public static void write(Parcel parcel, int fieldId, String val, boolean mayNull) {
         if (val == null) {
             if (mayNull) {
-                writeStart(parcel, position, 0);
+                writeHeader(parcel, fieldId, 0);
             }
         } else {
-            int start = writeStart(parcel, position);
+            int start = writeObjectHeader(parcel, fieldId);
             parcel.writeString(val);
-            writeEnd(parcel, start);
+            finishObjectHeader(parcel, start);
         }
     }
 
-    public static void write(Parcel parcel, int position, Parcelable val, int flags, boolean mayNull) {
+    public static void write(Parcel parcel, int fieldId, Parcelable val, int flags, boolean mayNull) {
         if (val == null) {
             if (mayNull) {
-                writeStart(parcel, position, 0);
+                writeHeader(parcel, fieldId, 0);
             }
         } else {
-            int start = writeStart(parcel, position);
+            int start = writeObjectHeader(parcel, fieldId);
             val.writeToParcel(parcel, flags);
-            writeEnd(parcel, start);
+            finishObjectHeader(parcel, start);
         }
     }
 
-    public static void write(Parcel parcel, int position, Bundle val, boolean mayNull) {
+    public static void write(Parcel parcel, int fieldId, Bundle val, boolean mayNull) {
         if (val == null) {
             if (mayNull) {
-                writeStart(parcel, position, 0);
+                writeHeader(parcel, fieldId, 0);
             }
         } else {
-            int start = writeStart(parcel, position);
+            int start = writeObjectHeader(parcel, fieldId);
             parcel.writeBundle(val);
-            writeEnd(parcel, start);
+            finishObjectHeader(parcel, start);
         }
     }
 
-    public static void write(Parcel parcel, int position, byte[] val, boolean mayNull) {
+    public static void write(Parcel parcel, int fieldId, byte[] val, boolean mayNull) {
         if (val == null) {
             if (mayNull) {
-                writeStart(parcel, position, 0);
+                writeHeader(parcel, fieldId, 0);
             }
         } else {
-            int start = writeStart(parcel, position);
+            int start = writeObjectHeader(parcel, fieldId);
             parcel.writeByteArray(val);
-            writeEnd(parcel, start);
+            finishObjectHeader(parcel, start);
         }
     }
 
-    public static void write(Parcel parcel, int position, int[] val, boolean mayNull) {
+    public static void write(Parcel parcel, int fieldId, int[] val, boolean mayNull) {
         if (val == null) {
             if (mayNull) {
-                writeStart(parcel, position, 0);
+                writeHeader(parcel, fieldId, 0);
             }
         } else {
-            int start = writeStart(parcel, position);
+            int start = writeObjectHeader(parcel, fieldId);
             parcel.writeIntArray(val);
-            writeEnd(parcel, start);
+            finishObjectHeader(parcel, start);
         }
     }
 
-    public static void write(Parcel parcel, int position, String[] val, boolean mayNull) {
+    public static void write(Parcel parcel, int fieldId, String[] val, boolean mayNull) {
         if (val == null) {
             if (mayNull) {
-                writeStart(parcel, position, 0);
+                writeHeader(parcel, fieldId, 0);
             }
         } else {
-            int start = writeStart(parcel, position);
+            int start = writeObjectHeader(parcel, fieldId);
             parcel.writeStringArray(val);
-            writeEnd(parcel, start);
+            finishObjectHeader(parcel, start);
         }
     }
 
-    public static void writeStringList(Parcel parcel, int position, List<String> val, boolean mayNull) {
+    public static void writeStringList(Parcel parcel, int fieldId, List<String> val, boolean mayNull) {
         if (val == null) {
             if (mayNull) {
-                writeStart(parcel, position, 0);
+                writeHeader(parcel, fieldId, 0);
             }
         } else {
-            int start = writeStart(parcel, position);
+            int start = writeObjectHeader(parcel, fieldId);
             parcel.writeStringList(val);
-            writeEnd(parcel, start);
+            finishObjectHeader(parcel, start);
         }
     }
 
@@ -193,13 +204,13 @@ public final class SafeParcelWriter {
         parcel.setDataPosition(end);
     }
 
-    public static <T extends Parcelable> void write(Parcel parcel, int position, T[] val, int flags, boolean mayNull) {
+    public static <T extends Parcelable> void write(Parcel parcel, int fieldId, T[] val, int flags, boolean mayNull) {
         if (val == null) {
             if (mayNull) {
-                writeStart(parcel, position, 0);
+                writeHeader(parcel, fieldId, 0);
             }
         } else {
-            int start = writeStart(parcel, position);
+            int start = writeObjectHeader(parcel, fieldId);
             parcel.writeInt(val.length);
             for (T t : val) {
                 if (t == null) {
@@ -208,17 +219,17 @@ public final class SafeParcelWriter {
                     writeArrayPart(parcel, t, flags);
                 }
             }
-            writeEnd(parcel, start);
+            finishObjectHeader(parcel, start);
         }
     }
 
-    public static <T extends Parcelable> void write(Parcel parcel, int position, List<T> val, int flags, boolean mayNull) {
+    public static <T extends Parcelable> void write(Parcel parcel, int fieldId, List<T> val, int flags, boolean mayNull) {
         if (val == null) {
             if (mayNull) {
-                writeStart(parcel, position, 0);
+                writeHeader(parcel, fieldId, 0);
             }
         } else {
-            int start = writeStart(parcel, position);
+            int start = writeObjectHeader(parcel, fieldId);
             parcel.writeInt(val.size());
             for (T t : val) {
                 if (t == null) {
@@ -227,43 +238,55 @@ public final class SafeParcelWriter {
                     writeArrayPart(parcel, t, flags);
                 }
             }
-            writeEnd(parcel, start);
+            finishObjectHeader(parcel, start);
         }
     }
 
-    public static void write(Parcel parcel, int position, Parcel val, boolean mayNull) {
+    public static void write(Parcel parcel, int fieldId, Parcel val, boolean mayNull) {
         if (val == null) {
             if (mayNull) {
-                writeStart(parcel, position, 0);
+                writeHeader(parcel, fieldId, 0);
             }
         } else {
-            int start = writeStart(parcel, position);
+            int start = writeObjectHeader(parcel, fieldId);
             parcel.appendFrom(val, 0, val.dataSize());
-            writeEnd(parcel, start);
+            finishObjectHeader(parcel, start);
         }
     }
 
-    public static void write(Parcel parcel, int position, List val, boolean mayNull) {
+    public static void write(Parcel parcel, int fieldId, List val, boolean mayNull) {
         if (val == null) {
             if (mayNull) {
-                writeStart(parcel, position, 0);
+                writeHeader(parcel, fieldId, 0);
             }
         } else {
-            int start = writeStart(parcel, position);
+            int start = writeObjectHeader(parcel, fieldId);
             parcel.writeList(val);
-            writeEnd(parcel, start);
+            finishObjectHeader(parcel, start);
         }
     }
 
-    public static void write(Parcel parcel, int position, IBinder val, boolean mayNull) {
+    public static void write(Parcel parcel, int fieldId, Map val, boolean mayNull) {
         if (val == null) {
             if (mayNull) {
-                writeStart(parcel, position, 0);
+                writeHeader(parcel, fieldId, 0);
             }
         } else {
-            int start = writeStart(parcel, position);
+            int start = writeObjectHeader(parcel, fieldId);
+            parcel.writeMap(val);
+            finishObjectHeader(parcel, start);
+        }
+    }
+
+    public static void write(Parcel parcel, int fieldId, IBinder val, boolean mayNull) {
+        if (val == null) {
+            if (mayNull) {
+                writeHeader(parcel, fieldId, 0);
+            }
+        } else {
+            int start = writeObjectHeader(parcel, fieldId);
             parcel.writeStrongBinder(val);
-            writeEnd(parcel, start);
+            finishObjectHeader(parcel, start);
         }
     }
 

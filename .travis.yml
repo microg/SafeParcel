@@ -4,12 +4,11 @@ script:
   - export TERM=dumb
   - echo sdk.dir $ANDROID_HOME > local.properties
   - jdk_switcher use oraclejdk8
-  - ./gradlew assemble
+  - ./gradlew test
 android:
   components:
   - tools
-  - build-tools-27.0.3
-  - android-27
-  - extra-android-m2repository
+  - build-tools-29.0.2
+  - android-29
 before_install:
- - yes | sdkmanager "platforms;android-27"
+ - yes | sdkmanager "platforms;android-29"

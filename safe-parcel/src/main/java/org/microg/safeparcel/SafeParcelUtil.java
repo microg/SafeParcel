@@ -29,7 +29,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public final class SafeParcelUtil {
     private static final String TAG = "SafeParcel";
@@ -57,10 +59,10 @@ public final class SafeParcelUtil {
         if (object == null)
             throw new NullPointerException();
         Class clazz = object.getClass();
-        int start = SafeParcelWriter.writeStart(parcel);
+        int start = SafeParcelWriter.writeObjectHeader(parcel);
         while (clazz != null) {
             for (Field field : clazz.getDeclaredFields()) {
-                if (field.isAnnotationPresent(SafeParceled.class)) {
+                if (isSafeParceledField(field)) {
                     try {
                         writeField(object, parcel, field, flags);
                     } catch (Exception e) {
@@ -70,46 +72,41 @@ public final class SafeParcelUtil {
             }
             clazz = clazz.getSuperclass();
         }
-        SafeParcelWriter.writeEnd(parcel, start);
+        SafeParcelWriter.finishObjectHeader(parcel, start);
     }
 
     public static void readObject(SafeParcelable object, Parcel parcel) {
         if (object == null)
             throw new NullPointerException();
         Class clazz = object.getClass();
-        SparseArray<Field> fieldMap = new SparseArray<Field>();
+        SparseArray<Field> fieldMap = new SparseArray<>();
         while (clazz != null) {
             for (Field field : clazz.getDeclaredFields()) {
-                if (field.isAnnotationPresent(SafeParceled.class)) {
-                    int fieldNum = field.getAnnotation(SafeParceled.class).value();
-                    if (fieldMap.get(fieldNum) != null) {
-                        throw new RuntimeException(
-                                "Field number " + fieldNum + " is used twice in " +
-                                        clazz.getName() + " for fields " + field.getName() +
-                                        " and " + fieldMap.get(fieldNum).getName());
+                if (isSafeParceledField(field)) {
+                    int fieldId = getFieldId(field);
+                    if (fieldMap.get(fieldId) != null) {
+                        throw new RuntimeException(String.format("Field number %d is used twice in %s for fields %s and %s", fieldId, clazz.getName(), field.getName(), fieldMap.get(fieldId).getName()));
                     }
-                    fieldMap.put(fieldNum, field);
+                    fieldMap.put(fieldId, field);
                 }
             }
             clazz = clazz.getSuperclass();
         }
         clazz = object.getClass();
-        int end = SafeParcelReader.readStart(parcel);
+        int end = SafeParcelReader.readObjectHeader(parcel);
         while (parcel.dataPosition() < end) {
-            int position = SafeParcelReader.readSingleInt(parcel);
-            int fieldNum = SafeParcelReader.halfOf(position);
-            Field field = fieldMap.get(fieldNum);
+            int header = SafeParcelReader.readHeader(parcel);
+            int fieldId = SafeParcelReader.getFieldId(header);
+            Field field = fieldMap.get(fieldId);
             if (field == null) {
-                Log.d(TAG, "Unknown field num " + fieldNum + " in " + clazz.getName() +
-                        ", skipping.");
-                SafeParcelReader.skip(parcel, position);
+                Log.d(TAG, String.format("Unknown field id %d in %s, skipping.", fieldId, clazz.getName()));
+                SafeParcelReader.skip(parcel, header);
             } else {
                 try {
-                    readField(object, parcel, field, position);
+                    readField(object, parcel, field, header);
                 } catch (Exception e) {
-                    Log.w(TAG, "Error reading field: " + fieldNum + " in " + clazz.getName() +
-                            ", skipping.", e);
-                    SafeParcelReader.skip(parcel, position);
+                    Log.w(TAG, String.format("Error reading field: %d in %s, skipping.", fieldId, clazz.getName()), e);
+                    SafeParcelReader.skip(parcel, header);
                 }
             }
         }
@@ -118,132 +115,200 @@ public final class SafeParcelUtil {
         }
     }
 
-    private static Parcelable.Creator getCreator(Field field) throws IllegalAccessException {
+    private static Parcelable.Creator<Parcelable> getCreator(Field field) {
         Class clazz = field.getType();
         if (clazz.isArray()) {
             clazz = clazz.getComponentType();
         }
-        if (Parcelable.class.isAssignableFrom(clazz)) {
+        if (clazz != null && Parcelable.class.isAssignableFrom(clazz)) {
             return getCreator(clazz);
         }
         throw new RuntimeException(clazz + " is not an Parcelable");
     }
 
-    private static Parcelable.Creator getCreator(Class clazz) throws IllegalAccessException {
+    private static Parcelable.Creator<Parcelable> getCreator(Class clazz) {
         try {
-            return (Parcelable.Creator) clazz.getDeclaredField("CREATOR").get(null);
+            Field creatorField = clazz.getDeclaredField("CREATOR");
+            creatorField.setAccessible(true);
+            return (Parcelable.Creator<Parcelable>) creatorField.get(null);
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(clazz + " is an Parcelable without CREATOR");
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException("CREATOR in " + clazz + " is not accessible");
         }
     }
 
     @SuppressWarnings("deprecation")
-    private static Class getClass(Field field) {
-        try {
-            SafeParceled annotation = field.getAnnotation(SafeParceled.class);
-            if (annotation.subClass() == SafeParceled.class) {
-                return Class.forName(annotation.subType());
-            } else {
-                return annotation.subClass();
+    private static Class getSubClass(Field field) {
+        SafeParceled safeParceled = field.getAnnotation(SafeParceled.class);
+        SafeParcelable.Field safeParcelableField = field.getAnnotation(SafeParcelable.Field.class);
+        if (safeParceled != null && safeParceled.subClass() != SafeParceled.class) {
+            return safeParceled.subClass();
+        } else if (safeParceled != null && !"undefined".equals(safeParceled.subType())) {
+            try {
+                return Class.forName(safeParceled.subType());
+            } catch (ClassNotFoundException e) {
+                throw new IllegalArgumentException(e);
             }
-        } catch (ClassNotFoundException e) {
+        } else if (safeParcelableField != null && safeParcelableField.subClass() != SafeParcelable.class) {
+            return safeParcelableField.subClass();
+        } else {
             return null;
         }
     }
 
+    @SuppressWarnings("deprecation")
+    private static Class getListItemClass(Field field) {
+        Class subClass = getSubClass(field);
+        if (subClass != null || field.isAnnotationPresent(SafeParceled.class)) return subClass;
+        Type type = field.getGenericType();
+        if (type instanceof ParameterizedType) {
+            ParameterizedType pt = (ParameterizedType) type;
+            if (pt.getActualTypeArguments().length >= 1) {
+                Type t = pt.getActualTypeArguments()[0];
+                if (t instanceof Class) return (Class) t;
+            }
+        }
+        return null;
+    }
+
     private static ClassLoader getClassLoader(Class clazz) {
-        return clazz == null ? ClassLoader.getSystemClassLoader() : clazz.getClassLoader();
+        return clazz == null || clazz.getClassLoader() == null ? ClassLoader.getSystemClassLoader() : clazz.getClassLoader();
     }
 
-    private static ClassLoader getArrayClassLoader(Field field) {
-        return field.getType().getComponentType().getClassLoader();
+    @SuppressWarnings("deprecation")
+    private static boolean getUseValueParcel(Field field) {
+        SafeParceled safeParceled = field.getAnnotation(SafeParceled.class);
+        SafeParcelable.Field safeParcelableField = field.getAnnotation(SafeParcelable.Field.class);
+        if (safeParceled != null) {
+            return safeParceled.useClassLoader();
+        } else if (safeParcelableField != null) {
+            return safeParcelableField.useValueParcel();
+        } else {
+            throw new IllegalStateException();
+        }
     }
 
-    private static boolean useClassLoader(Field field) {
-        return field.getAnnotation(SafeParceled.class).useClassLoader();
+    @SuppressWarnings("deprecation")
+    private static int getFieldId(Field field) {
+        SafeParceled safeParceled = field.getAnnotation(SafeParceled.class);
+        SafeParcelable.Field safeParcelableField = field.getAnnotation(SafeParcelable.Field.class);
+        if (safeParceled != null) {
+            return safeParceled.value();
+        } else if (safeParcelableField != null) {
+            return safeParcelableField.value();
+        } else {
+            throw new IllegalStateException();
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private static boolean getMayNull(Field field) {
+        SafeParceled safeParceled = field.getAnnotation(SafeParceled.class);
+        SafeParcelable.Field safeParcelableField = field.getAnnotation(SafeParcelable.Field.class);
+        if (safeParceled != null) {
+            return safeParceled.mayNull();
+        } else if (safeParcelableField != null) {
+            return safeParcelableField.mayNull();
+        } else {
+            throw new IllegalStateException();
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private static boolean isSafeParceledField(Field field) {
+        return field.isAnnotationPresent(SafeParceled.class) || field.isAnnotationPresent(SafeParcelable.Field.class);
     }
 
     private static void writeField(SafeParcelable object, Parcel parcel, Field field, int flags)
             throws IllegalAccessException {
-        int num = field.getAnnotation(SafeParceled.class).value();
-        boolean mayNull = field.getAnnotation(SafeParceled.class).mayNull();
+        int fieldId = getFieldId(field);
+        boolean mayNull = getMayNull(field);
         boolean acc = field.isAccessible();
         field.setAccessible(true);
         switch (SafeParcelType.fromField(field)) {
             case Parcelable:
-                SafeParcelWriter.write(parcel, num, (Parcelable) field.get(object), flags, mayNull);
+                SafeParcelWriter.write(parcel, fieldId, (Parcelable) field.get(object), flags, mayNull);
                 break;
             case Binder:
-                SafeParcelWriter.write(parcel, num, (IBinder) field.get(object), mayNull);
+                SafeParcelWriter.write(parcel, fieldId, (IBinder) field.get(object), mayNull);
                 break;
             case Interface:
-                SafeParcelWriter.write(parcel, num, ((IInterface) field.get(object)).asBinder(), mayNull);
+                SafeParcelWriter.write(parcel, fieldId, ((IInterface) field.get(object)).asBinder(), mayNull);
                 break;
             case StringList:
-                SafeParcelWriter.writeStringList(parcel, num, ((List<String>)field.get(object)), mayNull);
+                SafeParcelWriter.writeStringList(parcel, fieldId, ((List<String>) field.get(object)), mayNull);
                 break;
-            case List:
-                Class clazz = getClass(field);
-                if (clazz != null && Parcelable.class.isAssignableFrom(clazz) && !useClassLoader(field)) {
-                    SafeParcelWriter.write(parcel, num, (List) field.get(object), flags, mayNull);
+            case List: {
+                Class clazz = getListItemClass(field);
+                if (clazz == null || !Parcelable.class.isAssignableFrom(clazz) || getUseValueParcel(field)) {
+                    SafeParcelWriter.write(parcel, fieldId, (List) field.get(object), mayNull);
                 } else {
-                    SafeParcelWriter.write(parcel, num, (List) field.get(object), mayNull);
+                    SafeParcelWriter.write(parcel, fieldId, (List) field.get(object), flags, mayNull);
                 }
                 break;
+            }
+            case Map:
+                SafeParcelWriter.write(parcel, fieldId, (Map) field.get(object), mayNull);
+                break;
             case Bundle:
-                SafeParcelWriter.write(parcel, num, (Bundle) field.get(object), mayNull);
+                SafeParcelWriter.write(parcel, fieldId, (Bundle) field.get(object), mayNull);
                 break;
             case ParcelableArray:
-                SafeParcelWriter.write(parcel, num, (Parcelable[]) field.get(object), flags, mayNull);
+                SafeParcelWriter.write(parcel, fieldId, (Parcelable[]) field.get(object), flags, mayNull);
                 break;
             case StringArray:
-                SafeParcelWriter.write(parcel, num, (String[]) field.get(object), mayNull);
+                SafeParcelWriter.write(parcel, fieldId, (String[]) field.get(object), mayNull);
                 break;
             case ByteArray:
-                SafeParcelWriter.write(parcel, num, (byte[]) field.get(object), mayNull);
+                SafeParcelWriter.write(parcel, fieldId, (byte[]) field.get(object), mayNull);
                 break;
             case IntArray:
-                SafeParcelWriter.write(parcel, num, (int[]) field.get(object), mayNull);
+                SafeParcelWriter.write(parcel, fieldId, (int[]) field.get(object), mayNull);
                 break;
             case Integer:
-                SafeParcelWriter.write(parcel, num, (Integer) field.get(object));
+                SafeParcelWriter.write(parcel, fieldId, (Integer) field.get(object));
                 break;
             case Long:
-                SafeParcelWriter.write(parcel, num, (Long) field.get(object));
+                SafeParcelWriter.write(parcel, fieldId, (Long) field.get(object));
                 break;
             case Boolean:
-                SafeParcelWriter.write(parcel, num, (Boolean) field.get(object));
+                SafeParcelWriter.write(parcel, fieldId, (Boolean) field.get(object));
                 break;
             case Float:
-                SafeParcelWriter.write(parcel, num, (Float) field.get(object));
+                SafeParcelWriter.write(parcel, fieldId, (Float) field.get(object));
                 break;
             case Double:
-                SafeParcelWriter.write(parcel, num, (Double) field.get(object));
+                SafeParcelWriter.write(parcel, fieldId, (Double) field.get(object));
                 break;
             case String:
-                SafeParcelWriter.write(parcel, num, (String) field.get(object), mayNull);
+                SafeParcelWriter.write(parcel, fieldId, (String) field.get(object), mayNull);
                 break;
         }
         field.setAccessible(acc);
     }
 
-    private static void readField(SafeParcelable object, Parcel parcel, Field field, int position)
+    private static void readField(SafeParcelable object, Parcel parcel, Field field, int header)
             throws IllegalAccessException {
         boolean acc = field.isAccessible();
         field.setAccessible(true);
+        long versionCode = -1;
+        if (field.isAnnotationPresent(SafeParcelable.Field.class)) {
+            versionCode = field.getAnnotation(SafeParcelable.Field.class).versionCode();
+        }
         switch (SafeParcelType.fromField(field)) {
             case Parcelable:
-                field.set(object, SafeParcelReader.readParcelable(parcel, position, getCreator(field)));
+                field.set(object, SafeParcelReader.readParcelable(parcel, header, getCreator(field)));
                 break;
             case Binder:
-                field.set(object, SafeParcelReader.readBinder(parcel, position));
+                field.set(object, SafeParcelReader.readBinder(parcel, header));
                 break;
-            case Interface:
+            case Interface: {
                 boolean hasStub = false;
                 for (Class<?> aClass : field.getType().getDeclaredClasses()) {
                     try {
                         field.set(object, aClass.getDeclaredMethod("asInterface", IBinder.class)
-                                .invoke(null, SafeParcelReader.readBinder(parcel, position)));
+                                .invoke(null, SafeParcelReader.readBinder(parcel, header)));
                         hasStub = true;
                         break;
                     } catch (Exception ignored) {
@@ -251,75 +316,100 @@ public final class SafeParcelUtil {
                 }
                 if (!hasStub) throw new RuntimeException("Field has broken interface: " + field);
                 break;
+            }
             case StringList:
-                field.set(object, SafeParcelReader.readStringList(parcel, position));
+                field.set(object, SafeParcelReader.readStringList(parcel, header));
                 break;
-            case List:
-                Class clazz = getClass(field);
+            case List: {
+                Class clazz = getListItemClass(field);
                 Object val;
-                if (clazz != null && Parcelable.class.isAssignableFrom(clazz) && !useClassLoader(field)) {
-                    val = SafeParcelReader.readParcelableList(parcel, position, getCreator(clazz));
+                if (clazz == null || !Parcelable.class.isAssignableFrom(clazz) || getUseValueParcel(field)) {
+                    val = SafeParcelReader.readList(parcel, header, getClassLoader(clazz));
                 } else {
-                    val = SafeParcelReader.readList(parcel, position, getClassLoader(clazz));
+                    val = SafeParcelReader.readParcelableList(parcel, header, getCreator(clazz));
                 }
                 field.set(object, val);
                 break;
-            case Bundle:
-                clazz = getClass(field);
-                if (clazz != null && Parcelable.class.isAssignableFrom(clazz) && !useClassLoader(field)) {
-                    val = SafeParcelReader.readBundle(parcel, position, getClassLoader(clazz));
+            }
+            case Map: {
+                Class clazz = getSubClass(field);
+                Object val = SafeParcelReader.readMap(parcel, header, getClassLoader(clazz));
+                field.set(object, val);
+                break;
+            }
+            case Bundle: {
+                Class clazz = getSubClass(field);
+                Object val;
+                if (clazz == null || !Parcelable.class.isAssignableFrom(clazz) || getUseValueParcel(field) /* should not happen on Bundles */) {
+                    val = SafeParcelReader.readBundle(parcel, header, getClassLoader(field.getDeclaringClass()));
                 } else {
-                    val = SafeParcelReader.readBundle(parcel, position, getClassLoader(field.getDeclaringClass()));
+                    val = SafeParcelReader.readBundle(parcel, header, getClassLoader(clazz));
                 }
                 field.set(object, val);
                 break;
+            }
             case ParcelableArray:
-                field.set(object, SafeParcelReader.readParcelableArray(parcel, position, getCreator(field)));
+                field.set(object, SafeParcelReader.readParcelableArray(parcel, header, getCreator(field)));
                 break;
             case StringArray:
-                field.set(object, SafeParcelReader.readStringArray(parcel, position));
+                field.set(object, SafeParcelReader.readStringArray(parcel, header));
                 break;
             case ByteArray:
-                field.set(object, SafeParcelReader.readByteArray(parcel, position));
+                field.set(object, SafeParcelReader.readByteArray(parcel, header));
                 break;
             case IntArray:
-                field.set(object, SafeParcelReader.readIntArray(parcel, position));
+                field.set(object, SafeParcelReader.readIntArray(parcel, header));
                 break;
-            case Integer:
-                field.set(object, SafeParcelReader.readInt(parcel, position));
+            case Integer: {
+                int i = SafeParcelReader.readInt(parcel, header);
+                if (versionCode != -1 && i > versionCode) {
+                    Log.d(TAG, String.format("Version code of %s (%d) is older than object read (%d).", field.getDeclaringClass().getName(), versionCode, i));
+                }
+                field.set(object, i);
                 break;
-            case Long:
-                field.set(object, SafeParcelReader.readLong(parcel, position));
+            }
+            case Long: {
+                long l = SafeParcelReader.readLong(parcel, header);
+                if (versionCode != -1 && l > versionCode) {
+                    Log.d(TAG, String.format("Version code of %s (%d) is older than object read (%d).", field.getDeclaringClass().getName(), versionCode, l));
+                }
+                field.set(object, l);
                 break;
+            }
             case Boolean:
-                field.set(object, SafeParcelReader.readBool(parcel, position));
+                field.set(object, SafeParcelReader.readBool(parcel, header));
                 break;
             case Float:
-                field.set(object, SafeParcelReader.readFloat(parcel, position));
+                field.set(object, SafeParcelReader.readFloat(parcel, header));
                 break;
             case Double:
-                field.set(object, SafeParcelReader.readDouble(parcel, position));
+                field.set(object, SafeParcelReader.readDouble(parcel, header));
                 break;
             case String:
-                field.set(object, SafeParcelReader.readString(parcel, position));
+                field.set(object, SafeParcelReader.readString(parcel, header));
                 break;
+            case Byte:
+                break;
+            default:
+                throw new IllegalStateException("Unexpected value: " + SafeParcelType.fromField(field));
         }
         field.setAccessible(acc);
     }
 
     private enum SafeParcelType {
-        Parcelable, Binder, StringList, List, Bundle, ParcelableArray, StringArray, ByteArray, 
-        Interface, IntArray, Integer, Long, Boolean, Float, Double, String;
+        Parcelable, Binder, StringList, List, Bundle, ParcelableArray, StringArray, ByteArray,
+        Interface, IntArray, Integer, Long, Boolean, Float, Double, String, Map, Byte;
 
         public static SafeParcelType fromField(Field field) {
             Class clazz = field.getType();
-            if (clazz.isArray() && Parcelable.class.isAssignableFrom(clazz.getComponentType()))
+            Class component = clazz.getComponentType();
+            if (clazz.isArray() && component != null && Parcelable.class.isAssignableFrom(component))
                 return ParcelableArray;
-            if (clazz.isArray() && String.class.isAssignableFrom(clazz.getComponentType()))
+            if (clazz.isArray() && component != null &&  String.class.isAssignableFrom(component))
                 return StringArray;
-            if (clazz.isArray() && byte.class.isAssignableFrom(clazz.getComponentType()))
+            if (clazz.isArray() && component != null &&  byte.class.isAssignableFrom(component))
                 return ByteArray;
-            if (clazz.isArray() && int.class.isAssignableFrom(clazz.getComponentType()))
+            if (clazz.isArray() && component != null &&  int.class.isAssignableFrom(component))
                 return IntArray;
             if (Bundle.class.isAssignableFrom(clazz))
                 return Bundle;
@@ -330,17 +420,11 @@ public final class SafeParcelUtil {
             if (IInterface.class.isAssignableFrom(clazz))
                 return Interface;
             if (clazz == List.class || clazz == ArrayList.class) {
-                Type type = field.getGenericType();
-                if (type instanceof ParameterizedType) {
-                    ParameterizedType pt = (ParameterizedType) type;
-                    if (pt.getActualTypeArguments().length == 1 && pt.getActualTypeArguments()[0] == String.class) {
-                        // Parcel serializes string lists with specific methods
-                        // separate from generic list serialization.
-                        return StringList;
-                    }
-                }
+                if (getListItemClass(field) == String.class && !getUseValueParcel(field)) return StringList;
                 return List;
             }
+            if (clazz == Map.class || clazz == HashMap.class)
+                return Map;
             if (clazz == int.class || clazz == Integer.class)
                 return Integer;
             if (clazz == boolean.class || clazz == Boolean.class)
@@ -351,6 +435,8 @@ public final class SafeParcelUtil {
                 return Float;
             if (clazz == double.class || clazz == Double.class)
                 return Double;
+            if (clazz == byte.class || clazz == Byte.class)
+                return Byte;
             if (clazz == java.lang.String.class)
                 return String;
             throw new RuntimeException("Type is not yet usable with SafeParcelUtil: " + clazz);
@@ -361,7 +447,7 @@ public final class SafeParcelUtil {
         if (parcelable == null) return null;
         Parcel parcel = Parcel.obtain();
         parcelable.writeToParcel(parcel, 0);
-        byte[] bytes =  parcel.marshall();
+        byte[] bytes = parcel.marshall();
         parcel.recycle();
         return bytes;
     }

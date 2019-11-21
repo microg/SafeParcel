@@ -18,7 +18,4 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.microg.safeparcel">
 
-    <uses-sdk
-        android:minSdkVersion="9"
-        android:targetSdkVersion="25" />
 </manifest>

@@ -14,7 +14,17 @@
  * limitations under the License.
  */
 
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'de.mobilej.unmock:UnMockPlugin:0.7.3'
+    }
+}
+
 apply plugin: 'com.android.library'
+apply plugin: 'de.mobilej.unmock'
 
 String getMyVersionName() {
     def stdout = new ByteArrayOutputStream()
@@ -34,13 +44,21 @@ android {
 
     defaultConfig {
         versionName getMyVersionName()
+        minSdkVersion 9
+        targetSdkVersion 29
     }
-
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility = 1.8
+        targetCompatibility = 1.8
     }
 }
 
+unMock {
+    keep "android.util.SparseArray"
+    keep "com.android.internal.util.ArrayUtils"
+}
+
 dependencies {
+    testImplementation 'junit:junit:4.12'
+    testImplementation 'org.mockito:mockito-core:3.1.0'
 }

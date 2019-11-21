@@ -22,6 +22,7 @@ import android.os.Parcel;
 import android.os.Parcelable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 @SuppressWarnings("MagicNumber")
 public final class SafeParcelReader {
@@ -29,186 +30,211 @@ public final class SafeParcelReader {
     private SafeParcelReader() {
     }
 
+    @Deprecated
     public static int halfOf(int i) {
         return i & 0xFFFF;
     }
 
+    public static int getFieldId(int header) {
+        return header & 0xFFFF;
+    }
+
+    @Deprecated
     public static int readSingleInt(Parcel parcel) {
         return parcel.readInt();
     }
 
-    private static int readStart(Parcel parcel, int first) {
-        if ((first & 0xFFFF0000) != -65536)
-            return first >> 16 & 0xFFFF;
+    public static int readHeader(Parcel parcel) {
         return parcel.readInt();
     }
 
-    private static void readStart(Parcel parcel, int position, int length) {
-        int i = readStart(parcel, position);
-        if (i != length)
-            throw new ReadException("Expected size " + length + " got " + i + " (0x" + Integer.toHexString(i) + ")", parcel);
+    private static int readSize(Parcel parcel, int header) {
+        if ((header & 0xFFFF0000) != 0xFFFF0000)
+            return header >> 16 & 0xFFFF;
+        return parcel.readInt();
     }
 
+    private static void readExpectedSize(Parcel parcel, int header, int expectedSize) {
+        int i = readSize(parcel, header);
+        if (i != expectedSize)
+            throw new ReadException("Expected size " + expectedSize + " got " + i + " (0x" + Integer.toHexString(i) + ")", parcel);
+    }
+
+    @Deprecated
     public static int readStart(Parcel parcel) {
-        int first = readSingleInt(parcel);
-        int length = readStart(parcel, first);
+        return readObjectHeader(parcel);
+    }
+
+    public static int readObjectHeader(Parcel parcel) {
+        int header = readHeader(parcel);
+        int size = readSize(parcel, header);
         int start = parcel.dataPosition();
-        if (halfOf(first) != SafeParcelable.SAFE_PARCEL_MAGIC)
-            throw new ReadException("Expected object header. Got 0x" + Integer.toHexString(first), parcel);
-        int end = start + length;
+        if (getFieldId(header) != SafeParcelable.SAFE_PARCEL_OBJECT_MAGIC)
+            throw new ReadException("Expected object header. Got 0x" + Integer.toHexString(header), parcel);
+        int end = start + size;
         if ((end < start) || (end > parcel.dataSize()))
             throw new ReadException("Size read is invalid start=" + start + " end=" + end, parcel);
         return end;
     }
 
-    public static int readInt(Parcel parcel, int position) {
-        readStart(parcel, position, 4);
+    public static int readInt(Parcel parcel, int header) {
+        readExpectedSize(parcel, header, 4);
         return parcel.readInt();
     }
 
-    public static byte readByte(Parcel parcel, int position) {
-        readStart(parcel, position, 4);
+    public static byte readByte(Parcel parcel, int header) {
+        readExpectedSize(parcel, header, 4);
         return (byte) parcel.readInt();
     }
 
-    public static short readShort(Parcel parcel, int position) {
-        readStart(parcel, position, 4);
+    public static short readShort(Parcel parcel, int header) {
+        readExpectedSize(parcel, header, 4);
         return (short) parcel.readInt();
     }
 
-    public static boolean readBool(Parcel parcel, int position) {
-        readStart(parcel, position, 4);
+    public static boolean readBool(Parcel parcel, int header) {
+        readExpectedSize(parcel, header, 4);
         return parcel.readInt() != 0;
     }
 
-    public static long readLong(Parcel parcel, int position) {
-        readStart(parcel, position, 8);
+    public static long readLong(Parcel parcel, int header) {
+        readExpectedSize(parcel, header, 8);
         return parcel.readLong();
     }
 
-    public static float readFloat(Parcel parcel, int position) {
-        readStart(parcel, position, 4);
+    public static float readFloat(Parcel parcel, int header) {
+        readExpectedSize(parcel, header, 4);
         return parcel.readFloat();
     }
 
-    public static double readDouble(Parcel parcel, int position) {
-        readStart(parcel, position, 8);
+    public static double readDouble(Parcel parcel, int header) {
+        readExpectedSize(parcel, header, 8);
         return parcel.readDouble();
     }
 
-    public static String readString(Parcel parcel, int position) {
-        int length = readStart(parcel, position);
-        int start = parcel.dataPosition();
-        if (length == 0)
+    public static String readString(Parcel parcel, int header) {
+        int size = readSize(parcel, header);
+        if (size == 0)
             return null;
+        int start = parcel.dataPosition();
         String string = parcel.readString();
-        parcel.setDataPosition(start + length);
+        parcel.setDataPosition(start + size);
         return string;
     }
 
-    public static IBinder readBinder(Parcel parcel, int position) {
-        int length = readStart(parcel, position);
-        int start = parcel.dataPosition();
-        if (length == 0)
+    public static IBinder readBinder(Parcel parcel, int header) {
+        int size = readSize(parcel, header);
+        if (size == 0)
             return null;
+        int start = parcel.dataPosition();
         IBinder binder = parcel.readStrongBinder();
-        parcel.setDataPosition(start + length);
+        parcel.setDataPosition(start + size);
         return binder;
     }
 
-    public static <T extends Parcelable> T readParcelable(Parcel parcel, int position, Parcelable.Creator<T> creator) {
-        int length = readStart(parcel, position);
-        int start = parcel.dataPosition();
-        if (length == 0)
+    public static <T extends Parcelable> T readParcelable(Parcel parcel, int header, Parcelable.Creator<T> creator) {
+        int size = readSize(parcel, header);
+        if (size == 0)
             return null;
+        int start = parcel.dataPosition();
         T t = creator.createFromParcel(parcel);
-        parcel.setDataPosition(start + length);
+        parcel.setDataPosition(start + size);
         return t;
     }
 
-    public static ArrayList readList(Parcel parcel, int position, ClassLoader classLoader) {
-        int length = readStart(parcel, position);
-        int start = parcel.dataPosition();
-        if (length == 0)
+    public static ArrayList readList(Parcel parcel, int header, ClassLoader classLoader) {
+        int size = readSize(parcel, header);
+        if (size == 0)
             return null;
+        int start = parcel.dataPosition();
         ArrayList list = parcel.readArrayList(classLoader);
-        parcel.setDataPosition(start + length);
+        parcel.setDataPosition(start + size);
         return list;
     }
 
-    public static <T extends Parcelable> ArrayList<T> readParcelableList(Parcel parcel, int position, Parcelable.Creator<T> creator) {
-        int length = readStart(parcel, position);
-        int start = parcel.dataPosition();
-        if (length == 0)
+    public static HashMap readMap(Parcel parcel, int header, ClassLoader classLoader) {
+        int size = readSize(parcel, header);
+        if (size == 0)
             return null;
+        int start = parcel.dataPosition();
+        HashMap map = parcel.readHashMap(classLoader);
+        parcel.setDataPosition(start + size);
+        return map;
+    }
+
+    public static <T extends Parcelable> ArrayList<T> readParcelableList(Parcel parcel, int header, Parcelable.Creator<T> creator) {
+        int size = readSize(parcel, header);
+        if (size == 0)
+            return null;
+        int start = parcel.dataPosition();
         ArrayList<T> list = parcel.createTypedArrayList(creator);
-        parcel.setDataPosition(start + length);
+        parcel.setDataPosition(start + size);
         return list;
     }
 
-    public static ArrayList<String> readStringList(Parcel parcel, int position) {
-        int length = readStart(parcel, position);
-        int start = parcel.dataPosition();
-        if (length == 0)
+    public static ArrayList<String> readStringList(Parcel parcel, int header) {
+        int size = readSize(parcel, header);
+        if (size == 0)
             return null;
+        int start = parcel.dataPosition();
         ArrayList<String> list = parcel.createStringArrayList();
-        parcel.setDataPosition(start + length);
+        parcel.setDataPosition(start + size);
         return list;
     }
 
-    public static <T extends Parcelable> T[] readParcelableArray(Parcel parcel, int position, Parcelable.Creator<T> creator) {
-        int length = readStart(parcel, position);
-        int start = parcel.dataPosition();
-        if (length == 0)
+    public static <T extends Parcelable> T[] readParcelableArray(Parcel parcel, int header, Parcelable.Creator<T> creator) {
+        int size = readSize(parcel, header);
+        if (size == 0)
             return null;
+        int start = parcel.dataPosition();
         T[] arr = parcel.createTypedArray(creator);
-        parcel.setDataPosition(start + length);
+        parcel.setDataPosition(start + size);
         return arr;
     }
 
-    public static String[] readStringArray(Parcel parcel, int position) {
-        int length = readStart(parcel, position);
-        int start = parcel.dataPosition();
-        if (length == 0)
+    public static String[] readStringArray(Parcel parcel, int header) {
+        int size = readSize(parcel, header);
+        if (size == 0)
             return null;
+        int start = parcel.dataPosition();
         String[] arr = parcel.createStringArray();
-        parcel.setDataPosition(start + length);
+        parcel.setDataPosition(start + size);
         return arr;
     }
 
-    public static byte[] readByteArray(Parcel parcel, int position) {
-        int length = readStart(parcel, position);
-        int start = parcel.dataPosition();
-        if (length == 0)
+    public static byte[] readByteArray(Parcel parcel, int header) {
+        int size = readSize(parcel, header);
+        if (size == 0)
             return null;
+        int start = parcel.dataPosition();
         byte[] arr = parcel.createByteArray();
-        parcel.setDataPosition(start + length);
+        parcel.setDataPosition(start + size);
         return arr;
     }
 
-    public static int[] readIntArray(Parcel parcel, int position) {
-        int length = readStart(parcel, position);
-        int start = parcel.dataPosition();
-        if (length == 0)
+    public static int[] readIntArray(Parcel parcel, int header) {
+        int size = readSize(parcel, header);
+        if (size == 0)
             return null;
+        int start = parcel.dataPosition();
         int[] arr = parcel.createIntArray();
-        parcel.setDataPosition(start + length);
+        parcel.setDataPosition(start + size);
         return arr;
     }
 
-    public static Bundle readBundle(Parcel parcel, int position, ClassLoader classLoader) {
-        int length = readStart(parcel, position);
-        int start = parcel.dataPosition();
-        if (length == 0)
+    public static Bundle readBundle(Parcel parcel, int header, ClassLoader classLoader) {
+        int size = readSize(parcel, header);
+        if (size == 0)
             return null;
+        int start = parcel.dataPosition();
         Bundle bundle = parcel.readBundle(classLoader);
-        parcel.setDataPosition(start + length);
+        parcel.setDataPosition(start + size);
         return bundle;
     }
 
-    public static void skip(Parcel parcel, int position) {
-        int i = readStart(parcel, position);
-        parcel.setDataPosition(parcel.dataPosition() + i);
+    public static void skip(Parcel parcel, int header) {
+        int size = readSize(parcel, header);
+        parcel.setDataPosition(parcel.dataPosition() + size);
     }
 
     public static class ReadException extends RuntimeException {
