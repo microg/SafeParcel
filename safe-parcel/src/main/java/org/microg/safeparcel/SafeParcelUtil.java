@@ -393,7 +393,7 @@ public final class SafeParcelUtil {
 
     private static final Map<Class<?>, Map<Integer, Enum<?>>> statefulOrdinalsMap = new HashMap<>();
 
-    private static synchronized void readEnum(SafeParcelable object, Parcel parcel, Field field, int header) throws IllegalAccessException {
+    private static void readEnum(SafeParcelable object, Parcel parcel, Field field, int header) throws IllegalAccessException {
 
         Map<Integer, Enum<?>> statefulOrdinals = null;
         synchronized (SafeParcelUtil.class) {
