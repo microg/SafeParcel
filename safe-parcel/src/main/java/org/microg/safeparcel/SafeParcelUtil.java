@@ -55,7 +55,7 @@ public final class SafeParcelUtil {
                     try {
                         writeField(object, parcel, field, flags);
                     } catch (Exception e) {
-                        Log.w(TAG, "Error writing field: " + e);
+                        Log.w(TAG, "Error writing field: " + e, e);
                     }
                 }
             }
@@ -273,6 +273,9 @@ public final class SafeParcelUtil {
             case String:
                 SafeParcelWriter.write(parcel, fieldId, (String) field.get(object), mayNull);
                 break;
+            case Enum:
+                SafeParcelWriter.write(parcel, fieldId, field, (Enum)field.get(object), mayNull);
+                break;
         }
         field.setAccessible(acc);
     }
@@ -379,15 +382,51 @@ public final class SafeParcelUtil {
                 break;
             case Byte:
                 break;
+            case Enum:
+                readEnum(object, parcel, field, header);
+                break;
             default:
                 throw new IllegalStateException("Unexpected value: " + SafeParcelType.fromField(field));
         }
         field.setAccessible(acc);
     }
 
+    private static final Map<Class<?>, Map<Integer, Enum<?>>> statefulOrdinalsMap = new HashMap<>();
+
+    private static synchronized void readEnum(SafeParcelable object, Parcel parcel, Field field, int header) throws IllegalAccessException {
+
+        Map<Integer, Enum<?>> statefulOrdinals = null;
+        synchronized (SafeParcelUtil.class) {
+            statefulOrdinals = statefulOrdinalsMap.get(field.getType());
+            if (statefulOrdinals == null) {
+                statefulOrdinals = new HashMap<>();
+                for (Object enumObject : field.getType().getEnumConstants()) {
+                    Enum enumConstant = (Enum) enumObject;
+                    Field declaredField = null;
+                    try {
+                        declaredField = field.getType().getDeclaredField(enumConstant.name());
+                    } catch (NoSuchFieldException e) {
+                        throw new IllegalStateException("Invalid enum value: " + SafeParcelType.fromField(field));
+                    }
+                    SafeParcelable.Field annotation = declaredField.getAnnotation(SafeParcelable.Field.class);
+                    if (annotation != null) {
+                        statefulOrdinals.put(annotation.value(), enumConstant);
+                    } else {
+                        throw new IllegalStateException("Invalid enum value (no annotation): " + SafeParcelType.fromField(field));
+                    }
+                }
+                statefulOrdinalsMap.put(field.getType(), statefulOrdinals);
+            }
+        }
+
+        int statefulOrdinal = SafeParcelReader.readInt(parcel, header);
+        Enum enumConstant = statefulOrdinals.get(statefulOrdinal);
+        field.set(object, enumConstant);
+    }
+
     private enum SafeParcelType {
         Parcelable, Binder, StringList, List, Bundle, ParcelableArray, StringArray, ByteArray,
-        Interface, IntArray, Integer, Long, Boolean, Float, Double, String, Map, Byte;
+        Interface, IntArray, Integer, Long, Boolean, Float, Double, String, Map, Byte, Enum;
 
         public static SafeParcelType fromField(Field field) {
             Class clazz = field.getType();
@@ -428,6 +467,8 @@ public final class SafeParcelUtil {
                 return Byte;
             if (clazz == java.lang.String.class)
                 return String;
+            if (Enum.class.isAssignableFrom(clazz))
+                return Enum;
             throw new RuntimeException("Type is not yet usable with SafeParcelUtil: " + clazz);
         }
     }

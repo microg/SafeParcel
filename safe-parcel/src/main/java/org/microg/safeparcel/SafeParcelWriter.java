@@ -10,6 +10,7 @@ import android.os.IBinder;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
 
@@ -275,6 +276,29 @@ public final class SafeParcelWriter {
         } else {
             int start = writeObjectHeader(parcel, fieldId);
             parcel.writeStrongBinder(val);
+            finishObjectHeader(parcel, start);
+        }
+    }
+
+    public static void write(Parcel parcel, int fieldId, Field field, Enum val, boolean mayNull) {
+        if (val == null) {
+            if (mayNull) {
+                writeHeader(parcel, fieldId, 0);
+            }
+        } else {
+            int start = writeObjectHeader(parcel, fieldId);
+            Field enumConstantField = null;
+            try {
+                enumConstantField = field.getType().getDeclaredField(val.name());
+            } catch (NoSuchFieldException e) {
+                throw new RuntimeException("Invalid enum: field is absent");
+            }
+            SafeParcelable.Field annotation = enumConstantField.getAnnotation(SafeParcelable.Field.class);
+            if (annotation != null) {
+                parcel.writeInt(annotation.value());
+            } else {
+                throw new RuntimeException("Invalid enum: Annotation is missing");
+            }
             finishObjectHeader(parcel, start);
         }
     }
