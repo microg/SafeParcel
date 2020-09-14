@@ -55,7 +55,7 @@ public final class SafeParcelUtil {
                     try {
                         writeField(object, parcel, field, flags);
                     } catch (Exception e) {
-                        Log.w(TAG, "Error writing field: " + e, e);
+                        Log.w(TAG, "Error writing field: " + e);
                     }
                 }
             }
