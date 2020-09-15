@@ -44,6 +44,7 @@ public class AutoTests {
         foo1.barList.add(foo1.bar);
         foo1.barArray = new Bar[]{foo1.bar};
         foo1.intList.add(2);
+        foo1.enumType = Type.OFFLINE;
         Foo foo2 = remarshal(foo1, Foo.CREATOR);
         assertEquals(foo1, foo2);
     }
