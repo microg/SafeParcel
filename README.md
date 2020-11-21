@@ -1,3 +1,5 @@
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fmicrog%2FSafeParcel.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fmicrog%2FSafeParcel?ref=badge_shield)
+
 <!--
 SPDX-FileCopyrightText: 2016, microg Project Team
 SPDX-License-Identifier: CC-BY-SA-4.0
@@ -89,3 +91,7 @@ License
 - Code is licensed under [Apache License 2.0](LICENSES/Apache-2.0)
 - Documentation and artwork are licensed under [Creative Commons Attribution-ShareAlike 4.0](LICENSES/CC-BY-SA-4.0)
 - Some files are placed unter the public domain using [Creative Commons CC0 1.0 Public Domain Dedication](LICENSES/CCO-1.0)
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fmicrog%2FSafeParcel.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fmicrog%2FSafeParcel?ref=badge_large)
