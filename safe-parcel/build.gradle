@@ -25,6 +25,7 @@ android {
         versionName version
         minSdkVersion androidMinSdk
         targetSdkVersion androidTargetSdk
+        consumerProguardFiles 'proguard.txt'
     }
     compileOptions {
         sourceCompatibility = 1.8
