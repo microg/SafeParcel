@@ -182,6 +182,81 @@ public final class SafeParcelWriter {
         }
     }
 
+    public static void writeIntegerList(Parcel parcel, int fieldId, List<Integer> val, boolean mayNull) {
+        if (val == null) {
+            if (mayNull) {
+                writeHeader(parcel, fieldId, 0);
+            }
+        } else {
+            int start = writeObjectHeader(parcel, fieldId);
+            parcel.writeInt(val.size());
+            for (Integer i : val) {
+                parcel.writeInt(i);
+            }
+            finishObjectHeader(parcel, start);
+        }
+    }
+
+    public static void writeLongList(Parcel parcel, int fieldId, List<Long> val, boolean mayNull) {
+        if (val == null) {
+            if (mayNull) {
+                writeHeader(parcel, fieldId, 0);
+            }
+        } else {
+            int start = writeObjectHeader(parcel, fieldId);
+            parcel.writeInt(val.size());
+            for (Long l : val) {
+                parcel.writeLong(l);
+            }
+            finishObjectHeader(parcel, start);
+        }
+    }
+
+    public static void writeFloatList(Parcel parcel, int fieldId, List<Float> val, boolean mayNull) {
+        if (val == null) {
+            if (mayNull) {
+                writeHeader(parcel, fieldId, 0);
+            }
+        } else {
+            int start = writeObjectHeader(parcel, fieldId);
+            parcel.writeInt(val.size());
+            for (Float f : val) {
+                parcel.writeFloat(f);
+            }
+            finishObjectHeader(parcel, start);
+        }
+    }
+
+    public static void writeDoubleList(Parcel parcel, int fieldId, List<Double> val, boolean mayNull) {
+        if (val == null) {
+            if (mayNull) {
+                writeHeader(parcel, fieldId, 0);
+            }
+        } else {
+            int start = writeObjectHeader(parcel, fieldId);
+            parcel.writeInt(val.size());
+            for (Double d : val) {
+                parcel.writeDouble(d);
+            }
+            finishObjectHeader(parcel, start);
+        }
+    }
+
+    public static void writeBooleanList(Parcel parcel, int fieldId, List<Boolean> val, boolean mayNull) {
+        if (val == null) {
+            if (mayNull) {
+                writeHeader(parcel, fieldId, 0);
+            }
+        } else {
+            int start = writeObjectHeader(parcel, fieldId);
+            parcel.writeInt(val.size());
+            for (Boolean b : val) {
+                parcel.writeInt(b ? 1 : 0);
+            }
+            finishObjectHeader(parcel, start);
+        }
+    }
+
     private static <T extends Parcelable> void writeArrayPart(Parcel parcel, T val, int flags) {
         int before = parcel.dataPosition();
         parcel.writeInt(1);

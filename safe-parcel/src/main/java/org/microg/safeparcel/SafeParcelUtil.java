@@ -166,7 +166,7 @@ public final class SafeParcelUtil {
     }
 
     @SuppressWarnings("deprecation")
-    private static boolean getUseValueParcel(Field field) {
+    private static boolean useValueParcel(Field field) {
         SafeParceled safeParceled = field.getAnnotation(SafeParceled.class);
         SafeParcelable.Field safeParcelableField = field.getAnnotation(SafeParcelable.Field.class);
         if (safeParceled != null) {
@@ -209,6 +209,12 @@ public final class SafeParcelUtil {
         return field.isAnnotationPresent(SafeParceled.class) || field.isAnnotationPresent(SafeParcelable.Field.class);
     }
 
+    private static boolean useDirectList(Field field) {
+        SafeParcelable.Field safeParcelableField = field.getAnnotation(SafeParcelable.Field.class);
+        if (safeParcelableField != null) return safeParcelableField.useDirectList();
+        return false;
+    }
+
     private static void writeField(SafeParcelable object, Parcel parcel, Field field, int flags)
             throws IllegalAccessException {
         int fieldId = getFieldId(field);
@@ -228,9 +234,24 @@ public final class SafeParcelUtil {
             case StringList:
                 SafeParcelWriter.writeStringList(parcel, fieldId, ((List<String>) field.get(object)), mayNull);
                 break;
+            case IntegerList:
+                SafeParcelWriter.writeIntegerList(parcel, fieldId, ((List<Integer>) field.get(object)), mayNull);
+                break;
+            case BooleanList:
+                SafeParcelWriter.writeBooleanList(parcel, fieldId, ((List<Boolean>) field.get(object)), mayNull);
+                break;
+            case LongList:
+                SafeParcelWriter.writeLongList(parcel, fieldId, ((List<Long>) field.get(object)), mayNull);
+                break;
+            case FloatList:
+                SafeParcelWriter.writeFloatList(parcel, fieldId, ((List<Float>) field.get(object)), mayNull);
+                break;
+            case DoubleList:
+                SafeParcelWriter.writeDoubleList(parcel, fieldId, ((List<Double>) field.get(object)), mayNull);
+                break;
             case List: {
                 Class clazz = getListItemClass(field);
-                if (clazz == null || !Parcelable.class.isAssignableFrom(clazz) || getUseValueParcel(field)) {
+                if (clazz == null || !Parcelable.class.isAssignableFrom(clazz) || useValueParcel(field)) {
                     SafeParcelWriter.write(parcel, fieldId, (List) field.get(object), mayNull);
                 } else {
                     SafeParcelWriter.write(parcel, fieldId, (List) field.get(object), flags, mayNull);
@@ -309,10 +330,25 @@ public final class SafeParcelUtil {
             case StringList:
                 field.set(object, SafeParcelReader.readStringList(parcel, header));
                 break;
+            case IntegerList:
+                field.set(object, SafeParcelReader.readIntegerList(parcel, header));
+                break;
+            case BooleanList:
+                field.set(object, SafeParcelReader.readBooleanList(parcel, header));
+                break;
+            case LongList:
+                field.set(object, SafeParcelReader.readLongList(parcel, header));
+                break;
+            case FloatList:
+                field.set(object, SafeParcelReader.readFloatList(parcel, header));
+                break;
+            case DoubleList:
+                field.set(object, SafeParcelReader.readDoubleList(parcel, header));
+                break;
             case List: {
                 Class clazz = getListItemClass(field);
                 Object val;
-                if (clazz == null || !Parcelable.class.isAssignableFrom(clazz) || getUseValueParcel(field)) {
+                if (clazz == null || !Parcelable.class.isAssignableFrom(clazz) || useValueParcel(field)) {
                     val = SafeParcelReader.readList(parcel, header, getClassLoader(clazz));
                 } else {
                     val = SafeParcelReader.readParcelableList(parcel, header, getCreator(clazz));
@@ -329,7 +365,7 @@ public final class SafeParcelUtil {
             case Bundle: {
                 Class clazz = getSubClass(field);
                 Object val;
-                if (clazz == null || !Parcelable.class.isAssignableFrom(clazz) || getUseValueParcel(field) /* should not happen on Bundles */) {
+                if (clazz == null || !Parcelable.class.isAssignableFrom(clazz) || useValueParcel(field) /* should not happen on Bundles */) {
                     val = SafeParcelReader.readBundle(parcel, header, getClassLoader(field.getDeclaringClass()));
                 } else {
                     val = SafeParcelReader.readBundle(parcel, header, getClassLoader(clazz));
@@ -386,19 +422,21 @@ public final class SafeParcelUtil {
     }
 
     private enum SafeParcelType {
-        Parcelable, Binder, StringList, List, Bundle, ParcelableArray, StringArray, ByteArray,
-        Interface, IntArray, Integer, Long, Boolean, Float, Double, String, Map, Byte;
+        Parcelable, Binder, Interface, Bundle,
+        StringList, IntegerList, BooleanList, LongList, FloatList, DoubleList, List, Map,
+        ParcelableArray, StringArray, ByteArray, IntArray,
+        Integer, Long, Boolean, Float, Double, String, Byte;
 
         public static SafeParcelType fromField(Field field) {
             Class clazz = field.getType();
             Class component = clazz.getComponentType();
             if (clazz.isArray() && component != null && Parcelable.class.isAssignableFrom(component))
                 return ParcelableArray;
-            if (clazz.isArray() && component != null &&  String.class.isAssignableFrom(component))
+            if (clazz.isArray() && component != null && String.class.isAssignableFrom(component))
                 return StringArray;
-            if (clazz.isArray() && component != null &&  byte.class.isAssignableFrom(component))
+            if (clazz.isArray() && component != null && byte.class.isAssignableFrom(component))
                 return ByteArray;
-            if (clazz.isArray() && component != null &&  int.class.isAssignableFrom(component))
+            if (clazz.isArray() && component != null && int.class.isAssignableFrom(component))
                 return IntArray;
             if (Bundle.class.isAssignableFrom(clazz))
                 return Bundle;
@@ -409,7 +447,12 @@ public final class SafeParcelUtil {
             if (IInterface.class.isAssignableFrom(clazz))
                 return Interface;
             if (clazz == List.class || clazz == ArrayList.class) {
-                if (getListItemClass(field) == String.class && !getUseValueParcel(field)) return StringList;
+                if (getListItemClass(field) == String.class && !useValueParcel(field)) return StringList;
+                if (getListItemClass(field) == Integer.class && useDirectList(field)) return IntegerList;
+                if (getListItemClass(field) == Boolean.class && useDirectList(field)) return BooleanList;
+                if (getListItemClass(field) == Long.class && useDirectList(field)) return LongList;
+                if (getListItemClass(field) == Float.class && useDirectList(field)) return FloatList;
+                if (getListItemClass(field) == Double.class && useDirectList(field)) return DoubleList;
                 return List;
             }
             if (clazz == Map.class || clazz == HashMap.class)

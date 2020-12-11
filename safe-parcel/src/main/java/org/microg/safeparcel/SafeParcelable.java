@@ -30,6 +30,8 @@ public interface SafeParcelable extends Parcelable {
 
         boolean useValueParcel() default false;
 
+        boolean useDirectList() default false;
+
         long versionCode() default -1;
     }
 }

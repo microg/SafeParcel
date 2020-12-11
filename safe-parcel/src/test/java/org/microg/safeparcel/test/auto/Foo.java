@@ -33,6 +33,8 @@ class Foo extends AutoSafeParcelable {
     public Bar[] barArray = new Bar[0];
     @Field(9)
     public List<Integer> intList = new ArrayList<>();
+    @Field(value = 10, useDirectList = true)
+    public List<Integer> intList2 = new ArrayList<>();
 
     private Foo() {
     }
@@ -57,6 +59,7 @@ class Foo extends AutoSafeParcelable {
                 ", barList=" + barList +
                 ", barArray=" + Arrays.toString(barArray) +
                 ", intList=" + intList +
+                ", intList2=" + intList2 +
                 '}';
     }
 
@@ -73,12 +76,13 @@ class Foo extends AutoSafeParcelable {
                 Objects.equals(bar, foo.bar) &&
                 Objects.equals(barList, foo.barList) &&
                 Arrays.equals(barArray, foo.barArray) &&
-                Objects.equals(intList, foo.intList);
+                Objects.equals(intList, foo.intList) &&
+                Objects.equals(intList2, foo.intList2);
     }
 
     @Override
     public int hashCode() {
-        int result = Objects.hash(versionCode, intPrivate, string, stringList, stringStringMap, bar, barList, intList);
+        int result = Objects.hash(versionCode, intPrivate, string, stringList, stringStringMap, bar, barList, intList, intList2);
         result = 31 * result + Arrays.hashCode(barArray);
         return result;
     }

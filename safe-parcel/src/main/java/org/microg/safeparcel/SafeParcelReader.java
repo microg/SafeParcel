@@ -171,6 +171,76 @@ public final class SafeParcelReader {
         return list;
     }
 
+    public static ArrayList<Integer> readIntegerList(Parcel parcel, int header) {
+        int size = readSize(parcel, header);
+        if (size == 0)
+            return null;
+        int start = parcel.dataPosition();
+        int length = parcel.readInt();
+        ArrayList<Integer> list = new ArrayList<>(length);
+        for (int i = 0; i < length; i++) {
+            list.add(parcel.readInt());
+        }
+        parcel.setDataPosition(start + size);
+        return list;
+    }
+
+    public static ArrayList<Long> readLongList(Parcel parcel, int header) {
+        int size = readSize(parcel, header);
+        if (size == 0)
+            return null;
+        int start = parcel.dataPosition();
+        int length = parcel.readInt();
+        ArrayList<Long> list = new ArrayList<>(length);
+        for (int i = 0; i < length; i++) {
+            list.add(parcel.readLong());
+        }
+        parcel.setDataPosition(start + size);
+        return list;
+    }
+
+    public static ArrayList<Float> readFloatList(Parcel parcel, int header) {
+        int size = readSize(parcel, header);
+        if (size == 0)
+            return null;
+        int start = parcel.dataPosition();
+        int length = parcel.readInt();
+        ArrayList<Float> list = new ArrayList<>(length);
+        for (int i = 0; i < length; i++) {
+            list.add(parcel.readFloat());
+        }
+        parcel.setDataPosition(start + size);
+        return list;
+    }
+
+    public static ArrayList<Double> readDoubleList(Parcel parcel, int header) {
+        int size = readSize(parcel, header);
+        if (size == 0)
+            return null;
+        int start = parcel.dataPosition();
+        int length = parcel.readInt();
+        ArrayList<Double> list = new ArrayList<>(length);
+        for (int i = 0; i < length; i++) {
+            list.add(parcel.readDouble());
+        }
+        parcel.setDataPosition(start + size);
+        return list;
+    }
+
+    public static ArrayList<Boolean> readBooleanList(Parcel parcel, int header) {
+        int size = readSize(parcel, header);
+        if (size == 0)
+            return null;
+        int start = parcel.dataPosition();
+        int length = parcel.readInt();
+        ArrayList<Boolean> list = new ArrayList<>(length);
+        for (int i = 0; i < length; i++) {
+            list.add(parcel.readInt() != 0);
+        }
+        parcel.setDataPosition(start + size);
+        return list;
+    }
+
     public static <T extends Parcelable> T[] readParcelableArray(Parcel parcel, int header, Parcelable.Creator<T> creator) {
         int size = readSize(parcel, header);
         if (size == 0)
