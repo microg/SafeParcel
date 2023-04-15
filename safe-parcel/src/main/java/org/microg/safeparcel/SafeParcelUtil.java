@@ -273,6 +273,12 @@ public final class SafeParcelUtil {
             case ByteArray:
                 SafeParcelWriter.write(parcel, fieldId, (byte[]) field.get(object), mayNull);
                 break;
+            case ByteArrayArray:
+                SafeParcelWriter.write(parcel, fieldId, (byte[][]) field.get(object), mayNull);
+                break;
+            case FloatArray:
+                SafeParcelWriter.write(parcel, fieldId, (float[]) field.get(object), mayNull);
+                break;
             case IntArray:
                 SafeParcelWriter.write(parcel, fieldId, (int[]) field.get(object), mayNull);
                 break;
@@ -293,6 +299,9 @@ public final class SafeParcelUtil {
                 break;
             case String:
                 SafeParcelWriter.write(parcel, fieldId, (String) field.get(object), mayNull);
+                break;
+            case Byte:
+                SafeParcelWriter.write(parcel, fieldId, (Byte) field.get(object));
                 break;
         }
         field.setAccessible(acc);
@@ -382,6 +391,12 @@ public final class SafeParcelUtil {
             case ByteArray:
                 field.set(object, SafeParcelReader.readByteArray(parcel, header));
                 break;
+            case ByteArrayArray:
+                field.set(object, SafeParcelReader.readByteArrayArray(parcel, header));
+                break;
+            case FloatArray:
+                field.set(object, SafeParcelReader.readFloatArray(parcel, header));
+                break;
             case IntArray:
                 field.set(object, SafeParcelReader.readIntArray(parcel, header));
                 break;
@@ -414,6 +429,7 @@ public final class SafeParcelUtil {
                 field.set(object, SafeParcelReader.readString(parcel, header));
                 break;
             case Byte:
+                field.set(object, SafeParcelReader.readByte(parcel, header));
                 break;
             default:
                 throw new IllegalStateException("Unexpected value: " + SafeParcelType.fromField(field));
@@ -424,20 +440,20 @@ public final class SafeParcelUtil {
     private enum SafeParcelType {
         Parcelable, Binder, Interface, Bundle,
         StringList, IntegerList, BooleanList, LongList, FloatList, DoubleList, List, Map,
-        ParcelableArray, StringArray, ByteArray, IntArray,
+        ParcelableArray, StringArray, ByteArray, ByteArrayArray, FloatArray, IntArray,
         Integer, Long, Boolean, Float, Double, String, Byte;
 
         public static SafeParcelType fromField(Field field) {
             Class clazz = field.getType();
             Class component = clazz.getComponentType();
-            if (clazz.isArray() && component != null && Parcelable.class.isAssignableFrom(component))
-                return ParcelableArray;
-            if (clazz.isArray() && component != null && String.class.isAssignableFrom(component))
-                return StringArray;
-            if (clazz.isArray() && component != null && byte.class.isAssignableFrom(component))
-                return ByteArray;
-            if (clazz.isArray() && component != null && int.class.isAssignableFrom(component))
-                return IntArray;
+            if (clazz.isArray() && component != null) {
+                if (Parcelable.class.isAssignableFrom(component)) return ParcelableArray;
+                if (String.class.isAssignableFrom(component)) return StringArray;
+                if (byte.class.isAssignableFrom(component)) return ByteArray;
+                if (byte[].class.isAssignableFrom(component)) return ByteArrayArray;
+                if (float.class.isAssignableFrom(component)) return FloatArray;
+                if (int.class.isAssignableFrom(component)) return IntArray;
+            }
             if (Bundle.class.isAssignableFrom(clazz))
                 return Bundle;
             if (Parcelable.class.isAssignableFrom(clazz))

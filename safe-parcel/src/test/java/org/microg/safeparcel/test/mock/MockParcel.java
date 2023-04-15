@@ -83,6 +83,51 @@ public class MockParcel {
             return null;
         }).when(parcel).unmarshall(any(), anyInt(), anyInt());
         doAnswer(i -> {
+            byte[] val = i.getArgument(0);
+            if (val == null) {
+                parcel.writeInt(-1);
+                return null;
+            }
+            int N = val.length;
+            int j = 0;
+            parcel.writeInt(N);
+            while (j < N) {
+                parcel.writeByte(val[j]);
+                j++;
+            }
+            return null;
+        }).when(parcel).writeByteArray(any());
+        doAnswer(i -> {
+            float[] val = i.getArgument(0);
+            if (val == null) {
+                parcel.writeInt(-1);
+                return null;
+            }
+            int N = val.length;
+            int j = 0;
+            parcel.writeInt(N);
+            while (j < N) {
+                parcel.writeFloat(val[j]);
+                j++;
+            }
+            return null;
+        }).when(parcel).writeFloatArray(any());
+        doAnswer(i -> {
+            int[] val = i.getArgument(0);
+            if (val == null) {
+                parcel.writeInt(-1);
+                return null;
+            }
+            int N = val.length;
+            int j = 0;
+            parcel.writeInt(N);
+            while (j < N) {
+                parcel.writeInt(val[j]);
+                j++;
+            }
+            return null;
+        }).when(parcel).writeIntArray(any());
+        doAnswer(i -> {
             List<String> val = i.getArgument(0);
             if (val == null) {
                 parcel.writeInt(-1);
@@ -213,6 +258,39 @@ public class MockParcel {
             int j = 0;
             while (j < N) {
                 res[j] = parcel.readTypedObject(i.getArgument(0));
+                j++;
+            }
+            return res;
+        });
+        when(parcel.createByteArray()).thenAnswer(i -> {
+            int N = parcel.readInt();
+            if (N == -1) return null;
+            byte[] res = new byte[N];
+            int j = 0;
+            while (j < N) {
+                res[j] = parcel.readByte();
+                j++;
+            }
+            return res;
+        });
+        when(parcel.createFloatArray()).thenAnswer(i -> {
+            int N = parcel.readInt();
+            if (N == -1) return null;
+            float[] res = new float[N];
+            int j = 0;
+            while (j < N) {
+                res[j] = parcel.readFloat();
+                j++;
+            }
+            return res;
+        });
+        when(parcel.createIntArray()).thenAnswer(i -> {
+            int N = parcel.readInt();
+            if (N == -1) return null;
+            int[] res = new int[N];
+            int j = 0;
+            while (j < N) {
+                res[j] = parcel.readInt();
                 j++;
             }
             return res;

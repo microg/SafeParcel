@@ -35,6 +35,14 @@ class Foo extends AutoSafeParcelable {
     public List<Integer> intList = new ArrayList<>();
     @Field(value = 10, useDirectList = true)
     public List<Integer> intList2 = new ArrayList<>();
+    @Field(11)
+    public float[] floatArray = new float[4];
+    @Field(12)
+    public int[] intArray = new int[1];
+    @Field(13)
+    public byte[] byteArray = new byte[1];
+    @Field(14)
+    public byte[][] byteArrayArray = new byte[1][1];
 
     private Foo() {
     }
@@ -60,6 +68,10 @@ class Foo extends AutoSafeParcelable {
                 ", barArray=" + Arrays.toString(barArray) +
                 ", intList=" + intList +
                 ", intList2=" + intList2 +
+                ", floatArray=" + Arrays.toString(floatArray) +
+                ", intArray=" + Arrays.toString(intArray) +
+                ", byteArray=" + Arrays.toString(byteArray) +
+                ", byteArrayArray=" + Arrays.deepToString(byteArrayArray) +
                 '}';
     }
 
@@ -77,13 +89,21 @@ class Foo extends AutoSafeParcelable {
                 Objects.equals(barList, foo.barList) &&
                 Arrays.equals(barArray, foo.barArray) &&
                 Objects.equals(intList, foo.intList) &&
-                Objects.equals(intList2, foo.intList2);
+                Objects.equals(intList2, foo.intList2) &&
+                Arrays.equals(floatArray, foo.floatArray) &&
+                Arrays.equals(intArray, foo.intArray) &&
+                Arrays.equals(byteArray, foo.byteArray) &&
+                Arrays.deepEquals(byteArrayArray, foo.byteArrayArray);
     }
 
     @Override
     public int hashCode() {
         int result = Objects.hash(versionCode, intPrivate, string, stringList, stringStringMap, bar, barList, intList, intList2);
         result = 31 * result + Arrays.hashCode(barArray);
+        result = 31 * result + Arrays.hashCode(floatArray);
+        result = 31 * result + Arrays.hashCode(intArray);
+        result = 31 * result + Arrays.hashCode(byteArray);
+        result = 31 * result + Arrays.deepHashCode(byteArrayArray);
         return result;
     }
 

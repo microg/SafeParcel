@@ -146,6 +146,33 @@ public final class SafeParcelWriter {
         }
     }
 
+    public static void write(Parcel parcel, int fieldId, byte[][] val, boolean mayNull) {
+        if (val == null) {
+            if (mayNull) {
+                writeHeader(parcel, fieldId, 0);
+            }
+        } else {
+            int start = writeObjectHeader(parcel, fieldId);
+            parcel.writeInt(val.length);
+            for (byte[] arr : val) {
+                parcel.writeByteArray(arr);
+            }
+            finishObjectHeader(parcel, start);
+        }
+    }
+
+    public static void write(Parcel parcel, int fieldId, float[] val, boolean mayNull) {
+        if (val == null) {
+            if (mayNull) {
+                writeHeader(parcel, fieldId, 0);
+            }
+        } else {
+            int start = writeObjectHeader(parcel, fieldId);
+            parcel.writeFloatArray(val);
+            finishObjectHeader(parcel, start);
+        }
+    }
+
     public static void write(Parcel parcel, int fieldId, int[] val, boolean mayNull) {
         if (val == null) {
             if (mayNull) {

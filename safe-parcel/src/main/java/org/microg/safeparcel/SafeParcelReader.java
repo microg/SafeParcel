@@ -271,6 +271,30 @@ public final class SafeParcelReader {
         return arr;
     }
 
+    public static byte[][] readByteArrayArray(Parcel parcel, int header) {
+        int size = readSize(parcel, header);
+        if (size == 0)
+            return null;
+        int start = parcel.dataPosition();
+        int length = parcel.readInt();
+        byte[][] arr = new byte[length][];
+        for (int i = 0; i < length; i++) {
+            arr[i] = parcel.createByteArray();
+        }
+        parcel.setDataPosition(start + size);
+        return arr;
+    }
+
+    public static float[] readFloatArray(Parcel parcel, int header) {
+        int size = readSize(parcel, header);
+        if (size == 0)
+            return null;
+        int start = parcel.dataPosition();
+        float[] arr = parcel.createFloatArray();
+        parcel.setDataPosition(start + size);
+        return arr;
+    }
+
     public static int[] readIntArray(Parcel parcel, int header) {
         int size = readSize(parcel, header);
         if (size == 0)

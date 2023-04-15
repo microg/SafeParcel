@@ -45,6 +45,13 @@ public class AutoTests {
         foo1.barArray = new Bar[]{foo1.bar};
         foo1.intList.add(2);
         foo1.intList2.add(3);
+        foo1.floatArray[0] = 1f;
+        foo1.floatArray[1] = 3f;
+        foo1.floatArray[2] = 3f;
+        foo1.floatArray[3] = 7f;
+        foo1.intArray[0] = 1337;
+        foo1.byteArray[0] = 42;
+        foo1.byteArrayArray[0][0] = 24;
         Foo foo2 = remarshal(foo1, Foo.CREATOR);
         assertEquals(foo1, foo2);
     }
